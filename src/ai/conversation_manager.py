@@ -32,19 +32,30 @@ class ConversationManager:
             .limit(limit)\
             .all()
         
+        from datetime import timezone
+        
         history = []
         for conv in reversed(conversations):  # 按时间正序
+            # 确保时间有时区信息
+            received_at = conv.received_at
+            if received_at and received_at.tzinfo is None:
+                received_at = received_at.replace(tzinfo=timezone.utc)
+            
             history.append({
                 "role": "user",
                 "content": conv.content,
-                "timestamp": conv.received_at.isoformat() if conv.received_at else None
+                "timestamp": received_at.isoformat() if received_at else None
             })
             
             if conv.ai_replied and conv.ai_reply_content:
+                ai_reply_at = conv.ai_reply_at
+                if ai_reply_at and ai_reply_at.tzinfo is None:
+                    ai_reply_at = ai_reply_at.replace(tzinfo=timezone.utc)
+                
                 history.append({
                     "role": "assistant",
                     "content": conv.ai_reply_content,
-                    "timestamp": conv.ai_reply_at.isoformat() if conv.ai_reply_at else None
+                    "timestamp": ai_reply_at.isoformat() if ai_reply_at else None
                 })
         
         return history

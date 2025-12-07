@@ -254,6 +254,15 @@ async def get_ai_replies(
         # 格式化结果
         results = []
         for conv in conversations:
+            # 确保时间有时区信息（如果数据库返回的时间没有时区，假设是UTC）
+            ai_reply_at = conv.ai_reply_at
+            if ai_reply_at and ai_reply_at.tzinfo is None:
+                ai_reply_at = ai_reply_at.replace(tzinfo=timezone.utc)
+            
+            received_at = conv.received_at
+            if received_at and received_at.tzinfo is None:
+                received_at = received_at.replace(tzinfo=timezone.utc)
+            
             results.append({
                 "id": conv.id,
                 "conversation_id": conv.id,
@@ -263,8 +272,8 @@ async def get_ai_replies(
                 "message_type": conv.message_type.value if conv.message_type else None,
                 "user_message": conv.content[:200] if conv.content else None,  # 用户消息（前200字符）
                 "ai_reply": conv.ai_reply_content,
-                "ai_reply_at": conv.ai_reply_at.isoformat() if conv.ai_reply_at else None,  # ISO格式包含时区
-                "received_at": conv.received_at.isoformat() if conv.received_at else None,  # ISO格式包含时区
+                "ai_reply_at": ai_reply_at.isoformat() if ai_reply_at else None,  # ISO格式包含时区
+                "received_at": received_at.isoformat() if received_at else None,  # ISO格式包含时区
             })
         
         return {
