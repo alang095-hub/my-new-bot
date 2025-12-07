@@ -1,6 +1,6 @@
 """实时监控 - 使用 Server-Sent Events (SSE) 推送实时数据"""
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import deque
 import asyncio
 import json
@@ -47,11 +47,15 @@ class RealtimeMonitor:
             timestamp: 时间戳
         """
         if timestamp is None:
-            timestamp = datetime.now()
+            # 使用UTC时间，确保时区信息正确
+            timestamp = datetime.now(timezone.utc)
+        elif timestamp.tzinfo is None:
+            # 如果没有时区信息，假设为UTC
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
         
         event = {
             "type": "ai_reply",
-            "timestamp": timestamp.isoformat(),
+            "timestamp": timestamp.isoformat(),  # ISO格式包含时区信息
             "data": {
                 "customer_id": customer_id,
                 "customer_name": customer_name,
@@ -87,7 +91,7 @@ class RealtimeMonitor:
         event = {
             "type": "system_event",
             "event_type": event_type,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),  # 使用UTC时间
             "message": message,
             "data": data or {}
         }

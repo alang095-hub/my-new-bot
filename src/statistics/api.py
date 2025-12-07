@@ -261,8 +261,8 @@ async def get_ai_replies(
                 "message_type": conv.message_type.value if conv.message_type else None,
                 "user_message": conv.content[:200] if conv.content else None,  # 用户消息（前200字符）
                 "ai_reply": conv.ai_reply_content,
-                "ai_reply_at": conv.ai_reply_at.isoformat() if conv.ai_reply_at else None,
-                "received_at": conv.received_at.isoformat() if conv.received_at else None,
+                "ai_reply_at": conv.ai_reply_at.isoformat() if conv.ai_reply_at else None,  # ISO格式包含时区
+                "received_at": conv.received_at.isoformat() if conv.received_at else None,  # ISO格式包含时区
             })
         
         return {

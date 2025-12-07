@@ -242,6 +242,38 @@
             }
         }
         
+        // 格式化时间（处理时区）
+        function formatTime(timestamp) {
+            if (!timestamp) return '未知时间';
+            
+            try {
+                // 解析ISO格式时间字符串
+                const date = new Date(timestamp);
+                
+                // 检查日期是否有效
+                if (isNaN(date.getTime())) {
+                    return timestamp; // 如果无法解析，返回原始字符串
+                }
+                
+                // 使用本地时区格式化
+                const options = {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false,
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                };
+                
+                return date.toLocaleString('zh-CN', options);
+            } catch (e) {
+                console.error('Time format error:', e);
+                return timestamp;
+            }
+        }
+        
         // 添加回复项
         function addReplyItem(reply) {
             const container = document.getElementById('repliesContainer');
@@ -258,13 +290,16 @@
             const platformName = reply.platform === 'facebook' ? 'Facebook' : 
                                  reply.platform === 'instagram' ? 'Instagram' : 'Unknown';
             
+            // 格式化时间
+            const formattedTime = formatTime(reply.timestamp);
+            
             item.innerHTML = `
                 <div class="reply-header">
                     <div>
                         <span class="platform-badge ${platformClass}">${platformName}</span>
                         <strong>${reply.customer_name || `客户 #${reply.customer_id}`}</strong>
                     </div>
-                    <div>${new Date(reply.timestamp).toLocaleString('zh-CN')}</div>
+                    <div>${formattedTime}</div>
                 </div>
                 <div class="reply-content">
                     <div class="user-message">
@@ -330,8 +365,15 @@
         
         // 更新最后更新时间
         function updateLastUpdate() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
             document.getElementById('lastUpdate').textContent = 
-                `最后更新: ${new Date().toLocaleTimeString('zh-CN')}`;
+                `最后更新: ${timeString} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`;
         }
         
         // 页面卸载时清理
