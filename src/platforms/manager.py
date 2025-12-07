@@ -1,7 +1,12 @@
 """平台管理器 - 统一管理所有平台"""
 from typing import Dict, Optional, Any
-from src.platforms.registry import registry
 import logging
+
+# 延迟导入 registry 以避免循环导入
+def _get_registry():
+    """延迟获取 registry 实例"""
+    from src.platforms.registry import registry
+    return registry
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +42,7 @@ class PlatformManager:
         """
         try:
             # 检查平台是否已注册
+            registry = _get_registry()
             client_class = registry.get_client_class(platform_name)
             if not client_class:
                 logger.error(f"Platform {platform_name} is not registered")
