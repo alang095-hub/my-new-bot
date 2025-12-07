@@ -19,12 +19,30 @@
    - 在应用列表中找到并点击你的应用
    - 如果应用很多，可以使用搜索框搜索应用名称或 App ID
 
-### 方法 2：通过应用 ID 直接访问
+### 方法 2：通过应用 ID 直接访问（最快）
 
-如果你知道应用 ID（例如：`848496661333193`），可以直接访问：
+如果你知道应用 ID，可以直接访问应用页面：
+
+**URL 格式：**
 ```
 https://developers.facebook.com/apps/你的应用ID/
 ```
+
+**示例：**
+如果你的应用 ID 是 `848496661333193`，则访问：
+```
+https://developers.facebook.com/apps/848496661333193/
+```
+
+**然后导航到 Webhooks：**
+- 点击左侧菜单：**产品** → **Messenger** → **设置** → **Webhooks**
+- 或直接访问：`https://developers.facebook.com/apps/你的应用ID/webhooks/`
+
+**如何找到应用 ID：**
+1. 在 Facebook Developers 首页，点击 "我的应用"
+2. 在应用列表中，应用 ID 显示在应用名称下方（通常是数字）
+3. 或者在应用设置页面（设置 → 基本）的顶部可以看到 "App ID"
+4. 或者查看应用 URL，URL 中包含应用 ID
 
 ---
 
@@ -59,12 +77,29 @@ https://developers.facebook.com/apps/你的应用ID/
    - 搜索 "Webhook" 或 "回调"
    - 点击搜索结果跳转到 Webhook 设置
 
-### 方式 3：直接访问 Webhook 设置页面
+### 方式 3：直接访问 Webhook 设置页面（最快）
 
 如果你知道应用 ID，可以直接访问：
+
+**URL 格式：**
 ```
 https://developers.facebook.com/apps/你的应用ID/webhooks/
 ```
+
+**示例：**
+如果你的应用 ID 是 `848496661333193`，则访问：
+```
+https://developers.facebook.com/apps/848496661333193/webhooks/
+```
+
+**如何找到应用 ID：**
+1. 在 Facebook Developers 首页，点击 "我的应用"
+2. 在应用列表中，应用 ID 显示在应用名称下方
+3. 或者在应用设置页面（设置 → 基本）的顶部可以看到 App ID
+4. 或者直接访问应用，URL 中会包含应用 ID：
+   ```
+   https://developers.facebook.com/apps/应用ID/
+   ```
 
 ---
 
