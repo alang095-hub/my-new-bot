@@ -36,7 +36,7 @@ class DailyStatistics(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     __table_args__ = (
-        Index('idx_date', 'date'),
+        Index('idx_daily_statistics_date', 'date'),
     )
 
 
@@ -67,8 +67,8 @@ class CustomerInteraction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     __table_args__ = (
-        Index('idx_customer_date', 'customer_id', 'date'),
-        Index('idx_date', 'date'),
+        Index('idx_customer_interactions_customer_date', 'customer_id', 'date'),
+        Index('idx_customer_interactions_date', 'date'),
     )
 
 

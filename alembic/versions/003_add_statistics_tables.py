@@ -38,7 +38,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('date')
     )
-    op.create_index('idx_date', 'daily_statistics', ['date'], unique=False)
+    op.create_index('idx_daily_statistics_date', 'daily_statistics', ['date'], unique=False)
     
     # 创建客户交互记录表
     op.create_table(
@@ -58,8 +58,8 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()')),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('idx_customer_date', 'customer_interactions', ['customer_id', 'date'], unique=False)
-    op.create_index('idx_date', 'customer_interactions', ['date'], unique=False)
+    op.create_index('idx_customer_interactions_customer_date', 'customer_interactions', ['customer_id', 'date'], unique=False)
+    op.create_index('idx_customer_interactions_date', 'customer_interactions', ['date'], unique=False)
     
     # 创建高频问题表
     op.create_table(
@@ -82,10 +82,10 @@ def downgrade() -> None:
     op.drop_index('idx_count', table_name='frequent_questions')
     op.drop_index('idx_category', table_name='frequent_questions')
     op.drop_table('frequent_questions')
-    op.drop_index('idx_date', table_name='customer_interactions')
-    op.drop_index('idx_customer_date', table_name='customer_interactions')
+    op.drop_index('idx_customer_interactions_date', table_name='customer_interactions')
+    op.drop_index('idx_customer_interactions_customer_date', table_name='customer_interactions')
     op.drop_table('customer_interactions')
-    op.drop_index('idx_date', table_name='daily_statistics')
+    op.drop_index('idx_daily_statistics_date', table_name='daily_statistics')
     op.drop_table('daily_statistics')
 
 
