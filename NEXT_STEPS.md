@@ -133,7 +133,10 @@ ALGORITHM=HS256
 2. **添加 Webhook**
    - 点击 **"Add Callback URL"**
    - 输入 Webhook URL：`https://你的域名.zeabur.app/webhook`
-   - 输入 Verify Token：与 `.env` 中的 `FACEBOOK_VERIFY_TOKEN` 一致
+   - 输入 Verify Token：
+     - **本地开发**：与 `.env` 文件中的 `FACEBOOK_VERIFY_TOKEN` 一致
+     - **Zeabur 部署**：与 Zeabur 环境变量中的 `FACEBOOK_VERIFY_TOKEN` 一致
+     - ⚠️ **重要**：这个值必须与你的应用配置完全一致
    - 点击 **"Verify and Save"**
 
 3. **订阅事件**

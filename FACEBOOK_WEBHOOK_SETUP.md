@@ -121,9 +121,18 @@ https://developers.facebook.com/apps/848496661333193/webhooks/
 
 3. **输入验证令牌**
    - 在 "验证令牌" 或 "Verify Token" 输入框中输入
-   - 这个值必须与你在 Zeabur 环境变量中设置的 `FACEBOOK_VERIFY_TOKEN` **完全一致**
-   - 例如：如果环境变量是 `FACEBOOK_VERIFY_TOKEN=my_secure_token_2024`
-   - 那么这里就输入：`my_secure_token_2024`
+   - **获取方式：**
+     - **本地开发**：从 `.env` 文件中的 `FACEBOOK_VERIFY_TOKEN` 获取
+     - **Zeabur 部署**：从 Zeabur 环境变量中的 `FACEBOOK_VERIFY_TOKEN` 获取
+   - ⚠️ **重要**：这个值必须与你的应用配置 **完全一致**
+   - **示例：**
+     - 如果环境变量是 `FACEBOOK_VERIFY_TOKEN=my_secure_token_2024`
+     - 那么这里就输入：`my_secure_token_2024`
+   - **如何查看 Zeabur 环境变量：**
+     1. 登录 Zeabur 项目页面
+     2. 点击你的应用服务
+     3. 进入 "Variables" 或 "环境变量" 标签
+     4. 找到 `FACEBOOK_VERIFY_TOKEN` 的值
 
 4. **点击 "验证并保存" 或 "Verify and Save"**
    - Facebook 会立即向你的 Webhook URL 发送验证请求

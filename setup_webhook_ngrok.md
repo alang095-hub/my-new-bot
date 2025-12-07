@@ -74,7 +74,10 @@ Forwarding  https://xxxx-xx-xx-xx-xx.ngrok.io -> http://localhost:8000
 
 1. 点击 "Add Callback URL"
 2. 输入 Webhook URL: `https://xxxx-xx-xx-xx-xx.ngrok.io/webhook`
-3. 输入验证令牌（从 .env 文件中的 `FACEBOOK_VERIFY_TOKEN`）
+3. 输入验证令牌：
+   - **本地开发**：从 `.env` 文件中的 `FACEBOOK_VERIFY_TOKEN` 获取
+   - **Zeabur 部署**：从 Zeabur 环境变量中的 `FACEBOOK_VERIFY_TOKEN` 获取
+   - 这个值必须与你的应用配置完全一致
 4. 点击 "Verify and Save"
 
 ### 步骤 3: 订阅事件
