@@ -279,7 +279,7 @@
 
             try {
                 let timeStr = String(timestamp).trim();
-                
+
                 // 处理各种时间格式
                 // 如果以Z结尾，已经是UTC格式
                 if (timeStr.endsWith('Z')) {
@@ -297,6 +297,7 @@
                 // 如果有其他时区（如+08:00），保持原样，JavaScript会自动处理
 
                 // 解析ISO格式时间字符串
+                // new Date() 会自动将UTC时间转换为本地时区
                 const date = new Date(timeStr);
 
                 // 检查日期是否有效
@@ -305,10 +306,8 @@
                     return timestamp;
                 }
 
-                // 获取本地时区
-                const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                
-                // 使用本地时区格式化（自动从UTC转换）
+                // 使用本地时区格式化（不指定timeZone，让浏览器自动使用本地时区）
+                // toLocaleString 会自动将UTC时间转换为本地时区
                 const options = {
                     year: 'numeric',
                     month: '2-digit',
@@ -316,11 +315,11 @@
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
-                    hour12: false,
-                    timeZone: timeZone
+                    hour12: false
+                    // 不指定 timeZone，使用浏览器本地时区
                 };
 
-                // 格式化本地时间
+                // 格式化本地时间（自动从UTC转换）
                 const localTime = date.toLocaleString('zh-CN', options);
                 
                 // 返回本地时间（格式：YYYY/MM/DD HH:mm:ss）
