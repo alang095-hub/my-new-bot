@@ -278,26 +278,36 @@
             if (!timestamp) return '未知时间';
 
             try {
-                // 确保时间字符串包含时区信息
-                let timeStr = timestamp;
+                let timeStr = String(timestamp).trim();
                 
-                // 如果时间字符串以Z结尾（UTC），确保正确解析
+                // 处理各种时间格式
+                // 如果以Z结尾，已经是UTC格式
                 if (timeStr.endsWith('Z')) {
-                    // Z表示UTC，JavaScript会自动处理
-                } else if (!timeStr.includes('+') && !timeStr.includes('-', 10)) {
-                    // 如果没有时区信息，假设是UTC
-                    timeStr = timeStr + (timeStr.endsWith('Z') ? '' : 'Z');
+                    // 已经是UTC格式，直接使用
                 }
-                
-                // 解析ISO格式时间字符串（自动处理时区）
+                // 如果包含+00:00或+0000，也是UTC格式
+                else if (timeStr.includes('+00:00') || timeStr.includes('+0000')) {
+                    // 已经是UTC格式
+                }
+                // 如果没有时区信息，假设是UTC并添加Z
+                else if (!timeStr.includes('+') && !timeStr.includes('-', 10) && !timeStr.endsWith('Z')) {
+                    // 没有时区信息，假设是UTC
+                    timeStr = timeStr.endsWith('Z') ? timeStr : timeStr + 'Z';
+                }
+                // 如果有其他时区（如+08:00），保持原样，JavaScript会自动处理
+
+                // 解析ISO格式时间字符串
                 const date = new Date(timeStr);
 
                 // 检查日期是否有效
                 if (isNaN(date.getTime())) {
                     console.warn('Invalid timestamp:', timestamp);
-                    return timestamp; // 如果无法解析，返回原始字符串
+                    return timestamp;
                 }
 
+                // 获取本地时区
+                const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                
                 // 使用本地时区格式化（自动从UTC转换）
                 const options = {
                     year: 'numeric',
@@ -307,16 +317,13 @@
                     minute: '2-digit',
                     second: '2-digit',
                     hour12: false,
-                    timeZoneName: 'short'
+                    timeZone: timeZone
                 };
 
-                // toLocaleString 会自动将UTC时间转换为本地时区
+                // 格式化本地时间
                 const localTime = date.toLocaleString('zh-CN', options);
                 
-                // 同时显示UTC时间（用于调试）
-                const utcTime = date.toUTCString();
-                
-                // 返回本地时间（包含时区信息）
+                // 返回本地时间（格式：YYYY/MM/DD HH:mm:ss）
                 return localTime;
             } catch (e) {
                 console.error('Time format error:', e, 'timestamp:', timestamp);
