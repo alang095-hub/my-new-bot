@@ -249,7 +249,12 @@
         // 处理事件
         function handleEvent(data) {
             if (data.type === 'ai_reply') {
-                addReplyItem(data.data);
+                // 将timestamp添加到data中
+                const replyData = {
+                    ...data.data,
+                    timestamp: data.timestamp  // 从事件顶层获取timestamp
+                };
+                addReplyItem(replyData);
                 updateLastUpdate();
             } else if (data.type === 'initial_data') {
                 // 处理初始数据
@@ -262,7 +267,12 @@
                     // 按时间倒序显示（最新的在前）
                     data.replies.reverse().forEach(reply => {
                         if (reply.type === 'ai_reply' && reply.data) {
-                            addReplyItem(reply.data);
+                            // 将timestamp添加到data中
+                            const replyData = {
+                                ...reply.data,
+                                timestamp: reply.timestamp  // 从事件顶层获取timestamp
+                            };
+                            addReplyItem(replyData);
                         }
                     });
                 }
@@ -321,7 +331,7 @@
 
                 // 格式化本地时间（自动从UTC转换）
                 const localTime = date.toLocaleString('zh-CN', options);
-                
+
                 // 返回本地时间（格式：YYYY/MM/DD HH:mm:ss）
                 return localTime;
             } catch (e) {
@@ -391,7 +401,12 @@
                     // 数据格式：result.data 是事件对象数组，每个对象有 type 和 data
                     result.data.reverse().forEach(event => {
                         if (event.type === 'ai_reply' && event.data) {
-                            addReplyItem(event.data);
+                            // 将timestamp添加到data中
+                            const replyData = {
+                                ...event.data,
+                                timestamp: event.timestamp  // 从事件顶层获取timestamp
+                            };
+                            addReplyItem(replyData);
                         }
                     });
                 }
