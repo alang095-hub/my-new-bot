@@ -58,4 +58,85 @@ htmlcov/
 # Alembic
 alembic/versions/*.pyc
 
+# 临时文件和文档
+# 临时故障排除文档
+FIX_*.md
+DEBUG_*.md
+TEST_*.md
+QUICK_*.md
+STEP_BY_STEP_*.md
+FIND_*.md
+CHECK_*.md
+VERIFY_*.md
+WEBHOOK_*.md
+COMPLETE_*.md
+CONFIGURE_*.md
+ADD_*.md
+AFTER_*.md
+FROM_*.md
+HOW_*.md
+WHY_*.md
+CREATE_*.md
+DELETE_*.md
+CLEAR_*.md
+DIRECT_*.md
+BUTTON_*.md
+NO_*.md
+RECONFIGURE_*.md
+GET_*.md
+OPEN_*.md
+AUTHORIZATION_*.md
+OAUTH_*.md
+EXCHANGE_*.md
+INSTALL_*.md
+SETUP_*.md
+START_*.md
+USAGE_*.md
+API_*.md
+CHECKLIST.md
+NEXT_STEPS.md
+DIAGNOSE_*.md
+VERIFICATION_*.md
+SETUP_RESULT.md
+SYSTEM_STARTED.md
+TEST_RESULTS.md
+
+# 临时脚本
+test_*.py
+quick_*.py
+diagnose_*.py
+auto_*.py
+check_*.py
+setup_*.py
+configure_*.py
+associate_*.py
+analyze_*.py
+full_auto_*.py
+complete_*.py
+wait_and_retry.py
+get_telegram_chat_id*.py
+facebook_oauth_helper.py
+oauth_callback_handler.py
+fix_*.py
+verify_*.py
+deploy_to_railway.py
+zeabur_deploy_helper.py
+view_statistics.py
+install_*.py
+setup_database*.py
+setup_wizard.py
+istency.py
+
+# 中文临时文档（包含中文字符的md文件，除了README等核心文档）
+[使用关联完成]*.md
+[快速]*.md
+[解决]*.md
+[测试]*.md
+[日志]*.md
+[找不到]*.md
+[添加]*.md
+[简化]*.md
+[通过]*.md
+[Webhook配置]*.md
+[关联]*.md
 
