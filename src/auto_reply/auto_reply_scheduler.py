@@ -1,6 +1,7 @@
 """Auto-reply scheduler - Periodically scan and reply to unreplied product-related messages"""
 import asyncio
 import logging
+import httpx
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
 from sqlalchemy import and_
@@ -272,25 +273,55 @@ class AutoReplyScheduler:
                         continue
                     
                     # Send reply
-                    await page_client.send_message(
-                        recipient_id=sender_id,
-                        message=ai_reply,
-                        page_id=page_id
-                    )
-                    
-                    # Update conversation record
-                    conversation_manager.update_ai_reply(conversation.id, ai_reply)
-                    
-                    stats["replied_count"] += 1
-                    logger.info(
-                        f"✅ Auto-replied to message {conversation.id} "
-                        f"(Customer: {customer.name or sender_id}): {message_content[:50]}..."
-                    )
-                
-                except Exception as e:
-                    logger.error(f"Failed to process unreplied message: {str(e)}", exc_info=True)
-                    stats["error_count"] += 1
-                    continue
+                    try:
+                        await page_client.send_message(
+                            recipient_id=sender_id,
+                            message=ai_reply,
+                            page_id=page_id
+                        )
+                        
+                        # Update conversation record
+                        conversation_manager.update_ai_reply(conversation.id, ai_reply)
+                        
+                        stats["replied_count"] += 1
+                        logger.info(
+                            f"✅ Auto-replied to message {conversation.id} "
+                            f"(Customer: {customer.name or sender_id}): {message_content[:50]}..."
+                        )
+                    except Exception as e:
+                        # Check if it's a 24-hour window limit error
+                        from src.utils.exceptions import APIError
+                        is_24h_window_error = False
+                        
+                        if isinstance(e, APIError):
+                            # Check if it's 24-hour window limit
+                            error_subcode = e.details.get("error_subcode")
+                            if error_subcode in [2018001, 2018278] or "24小时" in e.message:
+                                is_24h_window_error = True
+                        elif isinstance(e, httpx.HTTPStatusError):
+                            # Check HTTP response for 24-hour window error
+                            if e.response.status_code == 400:
+                                try:
+                                    error_detail = e.response.json()
+                                    error_info = error_detail.get("error", {})
+                                    error_subcode = error_info.get("error_subcode")
+                                    if error_subcode in [2018001, 2018278]:
+                                        is_24h_window_error = True
+                                except:
+                                    pass
+                        
+                        if is_24h_window_error:
+                            logger.warning(
+                                f"⏰ 跳过消息 {conversation.id}: 超过24小时消息发送窗口限制。"
+                                f"用户需要先发送新消息才能回复。"
+                            )
+                            # Don't count as error, just skip
+                            continue
+                        
+                        # For other errors, log and count as error
+                        logger.error(f"Failed to send message to {sender_id}: {str(e)}", exc_info=True)
+                        stats["error_count"] += 1
+                        continue
             
             await page_client.close()
             

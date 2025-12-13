@@ -51,6 +51,16 @@ class FacebookAPIClient:
                     f"使用页面 {page_id} 的专用Token发送消息 (Token前10位: {page_token[:10]}...)")
                 try:
                     result = await self._do_send_message(recipient_id, message, message_type, page_id)
+                    # 检查是否是24小时窗口限制错误
+                    if isinstance(result, dict) and result.get("24h_window_limit"):
+                        # 抛出特殊异常，让调用方知道这是24小时窗口限制
+                        from src.utils.exceptions import APIError
+                        raise APIError(
+                            message="24小时消息发送窗口限制",
+                            api_name="Facebook",
+                            status_code=400,
+                            details={"error_subcode": result.get("error", {}).get("error_subcode")}
+                        )
                     return result
                 finally:
                     # 恢复原始Token
@@ -114,6 +124,8 @@ class FacebookAPIClient:
             # 记录详细的错误信息
             if response.status_code != 200:
                 error_detail = None
+                is_24h_window_error = False
+                
                 try:
                     error_detail = response.json()
                     error_msg = error_detail.get("error", {})
@@ -121,26 +133,48 @@ class FacebookAPIClient:
                     error_message = error_msg.get("message", "未知错误")
                     error_subcode = error_msg.get("error_subcode")
 
-                    logger.error(
-                        f"Facebook API error: {error_message} (code: {error_code}, subcode: {error_subcode})")
-
-                    # 记录完整的错误详情（用于调试）- 改为INFO级别以便查看
-                    logger.info(f"Full error detail: {error_detail}")
-                    logger.error(f"Facebook API 400错误详情: {error_detail}")
-
-                    # 提供更友好的错误提示
-                    if error_code == 10:  # 权限错误
+                    # 检查是否是24小时窗口限制错误
+                    if error_code == 10 and error_subcode in [2018001, 2018278]:
+                        is_24h_window_error = True
+                        logger.warning(
+                            f"⚠️ 超过24小时消息发送窗口限制（错误码{error_subcode}）。"
+                            f"用户超过24小时未发送消息，无法使用RESPONSE类型回复。"
+                            f"如需发送，需要使用消息标签（Message Tags）。"
+                        )
+                    else:
                         logger.error(
-                            "权限不足，请检查Access Token是否有pages_messaging权限")
-                    elif error_code == 100:  # 参数错误
-                        logger.error(f"参数错误: {error_message}")
-                    elif error_subcode == 2018001:  # 24小时窗口限制
-                        logger.warning("超过24小时窗口限制，无法发送消息。用户需要先发送消息。")
+                            f"Facebook API error: {error_message} (code: {error_code}, subcode: {error_subcode})")
+                        # 记录完整的错误详情（用于调试）
+                        logger.info(f"Full error detail: {error_detail}")
+                        logger.error(f"Facebook API 400错误详情: {error_detail}")
+
+                        # 提供更友好的错误提示
+                        if error_code == 10:  # OAuth错误
+                            # 其他OAuth错误
+                            if "权限" in error_message or "permission" in error_message.lower():
+                                logger.error(
+                                    "权限不足，请检查Access Token是否有pages_messaging权限"
+                                )
+                            else:
+                                logger.error(f"OAuth错误: {error_message}")
+                        elif error_code == 100:  # 参数错误
+                            logger.error(f"参数错误: {error_message}")
 
                 except Exception as e:
                     error_detail = response.text
                     logger.error(
                         f"Facebook API error (non-JSON): {error_detail[:200]}")
+
+                # 如果是24小时窗口错误，不抛出异常，返回特殊结果
+                if is_24h_window_error:
+                    return {
+                        "error": {
+                            "message": "24小时消息发送窗口限制",
+                            "code": 10,
+                            "error_subcode": error_subcode
+                        },
+                        "24h_window_limit": True
+                    }
 
                 # 记录请求详情（不包含敏感信息）
                 logger.error(f"Request URL: {url}")
