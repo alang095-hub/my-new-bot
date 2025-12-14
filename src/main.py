@@ -142,6 +142,10 @@ app.include_router(templates_router)
 from src.api.v1.admin.ab_testing import router as ab_testing_router
 app.include_router(ab_testing_router)
 
+# 注册部署管理API路由（无需终端即可执行部署后操作）
+from src.api.v1.admin.deployment import router as deployment_router
+app.include_router(deployment_router)
+
 # 临时注释掉全局异常处理器，以便查看 FastAPI 的默认错误信息
 # from fastapi.responses import JSONResponse
 # from fastapi.exceptions import RequestValidationError
