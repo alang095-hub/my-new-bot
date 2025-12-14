@@ -338,10 +338,51 @@ async def root() -> Dict[str, Any]:
 
 
 @app.get("/health", tags=["monitoring"])
-async def health_check(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """增强的健康检查端点"""
-    from src.monitoring.health import health_checker
-    return await health_checker.check_health(db)
+async def health_check() -> Dict[str, Any]:
+    """增强的健康检查端点（不强制依赖数据库，避免502错误）"""
+    try:
+        from src.monitoring.health import health_checker
+        # 尝试获取数据库连接，但不强制
+        try:
+            db = next(get_db())
+            return await health_checker.check_health(db)
+        except Exception as db_error:
+            # 如果数据库连接失败，返回基本健康状态
+            logger.warning(f"Database connection failed in health check: {db_error}")
+            return {
+                "status": "degraded",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "Service is running but database connection failed",
+                "checks": {
+                    "database": {
+                        "status": "unhealthy",
+                        "message": str(db_error)
+                    },
+                    "service": {
+                        "status": "healthy",
+                        "message": "Service is running"
+                    }
+                }
+            }
+    except Exception as e:
+        # 即使健康检查器本身失败，也返回基本响应
+        logger.error(f"Health check failed: {e}", exc_info=True)
+        return {
+            "status": "degraded",
+            "timestamp": datetime.utcnow().isoformat(),
+            "message": "Service is running but health check encountered an error",
+            "error": str(e)
+        }
+
+
+@app.get("/health/simple", tags=["monitoring"])
+async def simple_health_check() -> Dict[str, Any]:
+    """简单的健康检查端点（完全不依赖数据库，用于负载均衡器）"""
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "message": "Service is running"
+    }
 
 
 @app.get("/metrics", tags=["monitoring"])
