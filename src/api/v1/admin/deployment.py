@@ -166,7 +166,7 @@ async def get_deployment_status(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"获取部署状态失败: {str(e)}")
 
 
-@router.post("/verify-token")
+@router.get("/verify-token")
 async def verify_token():
     """
     验证当前Token类型和权限
