@@ -6,11 +6,12 @@ from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
-from src.database.database import SessionLocal
-from src.database.models import Conversation, Customer, Platform, MessageType
+from src.core.database.connection import SessionLocal
+from src.core.database.models import Conversation, Customer, Platform, MessageType
+from src.core.database.repositories import ConversationRepository
 from src.ai.reply_generator import ReplyGenerator
 from src.facebook.api_client import FacebookAPIClient
-from src.config import settings
+from src.core.config import settings
 from src.config.page_token_manager import page_token_manager
 from src.config.page_settings import page_settings
 from src.ai.conversation_manager import ConversationManager
@@ -217,130 +218,36 @@ class AutoReplyScheduler:
             reply_generator = ReplyGenerator(db)
             conversation_manager = ConversationManager(db)
 
-            # Process each unreplied message
-            for idx, msg_data in enumerate(unreplied_messages):
-                try:
-                    # Add delay between API calls to avoid rate limiting
-                    # Delay: 0.5 seconds between messages, 1 second every 10 messages
-                    if idx > 0:
-                        if idx % 10 == 0:
-                            # Longer delay every 10 messages
-                            await asyncio.sleep(1.0)
-                        else:
-                            # Normal delay between messages
-                            await asyncio.sleep(0.5)
-
-                    message = msg_data["message"]
-                    message_content = message.get("message", "")
-
-                    if not message_content:
-                        continue
-
-                    # Check if message is spam (using intelligent detection)
-                    if reply_generator._is_spam_or_invalid(message_content):
-                        logger.debug(
-                            f"Skipping spam message: {message_content[:50]}")
-                        continue
-
-                    # Sync message to database if not exists
-                    conversation = await self._sync_message_to_database(
-                        db, message, msg_data["conversation_id"], page_id
+            # Batch process messages (process in batches of 5 to avoid overwhelming the system)
+            batch_size = 5
+            total_batches = (len(unreplied_messages) + batch_size - 1) // batch_size
+            
+            for batch_idx in range(total_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = min(start_idx + batch_size, len(unreplied_messages))
+                batch_messages = unreplied_messages[start_idx:end_idx]
+                
+                logger.info(
+                    f"Processing batch {batch_idx + 1}/{total_batches} "
+                    f"({len(batch_messages)} messages) for page {page_id}"
+                )
+                
+                # Process batch concurrently
+                batch_tasks = [
+                    self._process_single_message(
+                        db, msg_data, page_id, page_client,
+                        reply_generator, conversation_manager, stats
                     )
-
-                    if not conversation:
-                        stats["error_count"] += 1
-                        continue
-
-                    # Check if already replied
-                    if conversation.ai_replied:
-                        continue
-
-                    # Get or create customer
-                    from_info = message.get("from", {})
-                    sender_id = from_info.get("id")
-
-                    if not sender_id:
-                        stats["error_count"] += 1
-                        continue
-
-                    customer = conversation_manager.get_or_create_customer(
-                        platform=Platform.FACEBOOK,
-                        platform_user_id=sender_id,
-                        name=from_info.get("name")
-                    )
-
-                    # Generate AI reply
-                    ai_reply = await reply_generator.generate_reply(
-                        customer_id=customer.id,
-                        message_content=message_content,
-                        customer_name=customer.name
-                    )
-
-                    if not ai_reply:
-                        logger.debug(
-                            f"Message {conversation.id} did not generate reply (may be flagged as spam)")
-                        stats["error_count"] += 1
-                        continue
-
-                    # Send reply
-                    try:
-                        await page_client.send_message(
-                            recipient_id=sender_id,
-                            message=ai_reply,
-                            page_id=page_id
-                        )
-
-                        # Update conversation record
-                        conversation_manager.update_ai_reply(
-                            conversation.id, ai_reply)
-
-                        stats["replied_count"] += 1
-                        logger.info(
-                            f"✅ Auto-replied to message {conversation.id} "
-                            f"(Customer: {customer.name or sender_id}): {message_content[:50]}..."
-                        )
-                    except Exception as e:
-                        # Check if it's a 24-hour window limit error
-                        from src.utils.exceptions import APIError
-                        is_24h_window_error = False
-
-                        if isinstance(e, APIError):
-                            # Check if it's 24-hour window limit
-                            error_subcode = e.details.get("error_subcode")
-                            if error_subcode in [2018001, 2018278] or "24小时" in e.message:
-                                is_24h_window_error = True
-                        elif isinstance(e, httpx.HTTPStatusError):
-                            # Check HTTP response for 24-hour window error
-                            if e.response.status_code == 400:
-                                try:
-                                    error_detail = e.response.json()
-                                    error_info = error_detail.get("error", {})
-                                    error_subcode = error_info.get(
-                                        "error_subcode")
-                                    if error_subcode in [2018001, 2018278]:
-                                        is_24h_window_error = True
-                                except:
-                                    pass
-
-                        if is_24h_window_error:
-                            logger.warning(
-                                f"⏰ 跳过消息 {conversation.id}: 超过24小时消息发送窗口限制。"
-                                f"用户需要先发送新消息才能回复。"
-                            )
-                            # Don't count as error, just skip
-                            continue
-
-                        # For other errors, log and count as error
-                        logger.error(
-                            f"Failed to send message to {sender_id}: {str(e)}", exc_info=True)
-                        stats["error_count"] += 1
-                        continue
-
-                except Exception as e:
-                    logger.error(
-                        f"Failed to process unreplied message: {str(e)}", exc_info=True)
-                    stats["error_count"] += 1
-                    continue
+                    for msg_data in batch_messages
+                ]
+                
+                # Wait for batch to complete
+                await asyncio.gather(*batch_tasks, return_exceptions=True)
+                
+                # Delay between batches to avoid rate limiting
+                if batch_idx < total_batches - 1:
+                    await asyncio.sleep(2.0)  # 2 second delay between batches
+            
 
             await page_client.close()
 
@@ -350,6 +257,141 @@ class AutoReplyScheduler:
             stats["error_count"] += 1
 
         return stats
+
+    async def _process_single_message(
+        self,
+        db: Session,
+        msg_data: Dict[str, Any],
+        page_id: str,
+        page_client: FacebookAPIClient,
+        reply_generator: ReplyGenerator,
+        conversation_manager: ConversationManager,
+        stats: Dict[str, int]
+    ) -> None:
+        """
+        处理单条未回复消息（批量处理中的单个任务）
+        
+        Args:
+            db: 数据库会话
+            msg_data: 消息数据
+            page_id: 页面ID
+            page_client: Facebook API客户端
+            reply_generator: 回复生成器
+            conversation_manager: 对话管理器
+            stats: 统计字典（会被修改）
+        """
+        try:
+            message = msg_data["message"]
+            message_content = message.get("message", "")
+
+            if not message_content:
+                return
+
+            # Check if message is spam (using intelligent detection)
+            if reply_generator._is_spam_or_invalid(message_content):
+                logger.debug(
+                    f"Skipping spam message: {message_content[:50]}")
+                return
+
+            # Sync message to database if not exists
+            conversation = await self._sync_message_to_database(
+                db, message, msg_data["conversation_id"], page_id
+            )
+
+            if not conversation:
+                stats["error_count"] += 1
+                return
+
+            # Check if already replied
+            if conversation.ai_replied:
+                return
+
+            # Get or create customer
+            from_info = message.get("from", {})
+            sender_id = from_info.get("id")
+
+            if not sender_id:
+                stats["error_count"] += 1
+                return
+
+            customer = await conversation_manager.get_or_create_customer(
+                platform=Platform.FACEBOOK,
+                platform_user_id=sender_id,
+                name=from_info.get("name")
+            )
+
+                    # Generate AI reply
+                    ai_reply = await reply_generator.generate_reply(
+                        customer_id=customer.id,
+                        message_content=message_content,
+                        customer_name=customer.name,
+                        conversation_id=conversation.id
+                    )
+
+            if not ai_reply:
+                logger.debug(
+                    f"Message {conversation.id} did not generate reply (may be flagged as spam)")
+                stats["error_count"] += 1
+                return
+
+            # Send reply
+            try:
+                await page_client.send_message(
+                    recipient_id=sender_id,
+                    message=ai_reply,
+                    page_id=page_id
+                )
+
+                # Update conversation record
+                conversation_manager.update_ai_reply(
+                    conversation.id, ai_reply)
+
+                stats["replied_count"] += 1
+                logger.info(
+                    f"✅ Auto-replied to message {conversation.id} "
+                    f"(Customer: {customer.name or sender_id}): {message_content[:50]}..."
+                )
+            except Exception as e:
+                # Check if it's a 24-hour window limit error
+                from src.core.exceptions import APIError
+                is_24h_window_error = False
+
+                if isinstance(e, APIError):
+                    # Check if it's 24-hour window limit
+                    error_subcode = e.details.get("error_subcode")
+                    if error_subcode in [2018001, 2018278] or "24小时" in e.message:
+                        is_24h_window_error = True
+                elif isinstance(e, httpx.HTTPStatusError):
+                    # Check HTTP response for 24-hour window error
+                    if e.response.status_code == 400:
+                        try:
+                            error_detail = e.response.json()
+                            error_info = error_detail.get("error", {})
+                            error_subcode = error_info.get("error_subcode")
+                            if error_subcode in [2018001, 2018278]:
+                                is_24h_window_error = True
+                        except:
+                            pass
+
+                if is_24h_window_error:
+                    logger.warning(
+                        f"⏰ 跳过消息 {conversation.id}: 超过24小时消息发送窗口限制。"
+                        f"用户需要先发送新消息才能回复。"
+                    )
+                    # Don't count as error, just skip
+                    return
+
+                # For other errors, log and count as error
+                logger.error(
+                    f"Failed to send message to {sender_id}: {str(e)}", exc_info=True)
+                stats["error_count"] += 1
+                return
+
+        except Exception as e:
+            logger.error(
+                f"Failed to process unreplied message: {str(e)}", exc_info=True)
+            stats["error_count"] += 1
+            return
 
     async def _sync_message_to_database(
         self,
@@ -369,10 +411,12 @@ class AutoReplyScheduler:
             if not message_id:
                 return None
 
-            # Check if message already exists in database
-            existing = db.query(Conversation).filter(
-                Conversation.platform_message_id == message_id
-            ).first()
+            # 使用Repository检查消息是否已存在
+            conversation_repo = ConversationRepository(db)
+            existing = conversation_repo.get_by_platform_message_id(
+                platform=Platform.FACEBOOK,
+                platform_message_id=message_id
+            )
 
             if existing:
                 return existing
@@ -386,7 +430,7 @@ class AutoReplyScheduler:
 
             # Get or create customer
             conversation_manager = ConversationManager(db)
-            customer = conversation_manager.get_or_create_customer(
+            customer = await conversation_manager.get_or_create_customer(
                 platform=Platform.FACEBOOK,
                 platform_user_id=sender_id,
                 name=from_info.get("name")
@@ -423,9 +467,12 @@ class AutoReplyScheduler:
                 }
             )
 
-            # Set received_at to the actual message time
-            conversation.received_at = created_time
-            db.commit()
+            # 使用Repository更新received_at时间
+            conversation_repo = ConversationRepository(db)
+            conversation = conversation_repo.update(
+                id=conversation.id,
+                received_at=created_time
+            )
 
             logger.debug(f"Synced message {message_id} to database")
             return conversation

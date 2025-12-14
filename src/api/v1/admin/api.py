@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
-from src.database.database import get_db
-from src.database.models import Conversation, Customer, Review, CollectedData
-from src.middleware.auth import AuthMiddleware
+from src.core.database.connection import get_db
+from src.core.database.models import Conversation, Customer, Review, CollectedData
+from src.api.middleware.auth import AuthMiddleware
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

@@ -1,7 +1,7 @@
 """Instagram 消息解析器"""
 from typing import Dict, Any, Optional, List
 from datetime import datetime
-from src.database.models import MessageType
+from src.core.database.models import MessageType
 
 
 class InstagramMessageParser:

@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Request
 from typing import Dict, Any
 from sqlalchemy.orm import Session
-from src.database.database import get_db
+from src.core.database.connection import get_db
 from src.telegram.command_processor import CommandProcessor
 from src.telegram.notification_sender import NotificationSender
 import logging

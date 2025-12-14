@@ -115,7 +115,7 @@ def test_database_production():
     """测试生产环境数据库配置"""
     try:
         from src.config import settings
-        from src.database.database import engine
+        from src.core.database.connection import engine
         
         # 检查数据库类型
         db_url = settings.database_url.lower()

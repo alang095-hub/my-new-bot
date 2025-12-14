@@ -5,9 +5,10 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
-from src.config import yaml_config
+from src.core.config import yaml_config
 from src.telegram.notification_sender import NotificationSender
-from src.database.models import Conversation
+from src.core.database.models import Conversation
+from src.core.database.repositories import ConversationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ class SummaryScheduler:
             "telegram", {}).get("notifications", {})
         self.running = False
         self._task: Optional[asyncio.Task] = None
+        # 使用Repository模式
+        self.conversation_repo = ConversationRepository(db)
 
     def start(self):
         """Start scheduler"""
@@ -128,28 +131,15 @@ class SummaryScheduler:
             period_label = "今天"
             time_range = start_time.strftime("%Y-%m-%d")
 
-        # 查询统计数据
+        # 使用Repository统计查询
         # 总消息数
-        total_messages = self.db.query(Conversation).filter(
-            Conversation.created_at >= start_time
-        ).count()
+        total_messages = self.conversation_repo.count_by_time_range(start_time)
 
         # AI回复数
-        ai_replies = self.db.query(Conversation).filter(
-            and_(
-                Conversation.created_at >= start_time,
-                Conversation.ai_replied == True
-            )
-        ).count()
+        ai_replies = self.conversation_repo.count_ai_replied_by_time_range(start_time)
 
-        # 需要审核的数量（通过should_review字段或filter_result判断）
-        # 这里简化处理，实际可能需要从filter_result中判断
-        manual_reviews = self.db.query(Conversation).filter(
-            and_(
-                Conversation.created_at >= start_time,
-                Conversation.priority != None  # 有优先级的消息通常需要审核
-            )
-        ).count()
+        # 需要审核的数量（通过优先级判断）
+        manual_reviews = self.conversation_repo.count_by_priority_by_time_range(start_time)
 
         # 错误数量（这里简化处理，实际可能需要从错误日志或专门的错误表中统计）
         errors = 0  # Error count from logs (can be enhanced later)

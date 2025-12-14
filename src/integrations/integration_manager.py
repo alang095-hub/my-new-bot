@@ -1,10 +1,10 @@
 """集成管理器 - 统一管理多个客服平台"""
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-from src.database.models import IntegrationLog
+from src.core.database.models import IntegrationLog
 from src.integrations.manychat_client import ManyChatClient
 from src.integrations.botcake_client import BotcakeClient
-from src.config import yaml_config
+from src.core.config import yaml_config
 import logging
 from datetime import datetime
 

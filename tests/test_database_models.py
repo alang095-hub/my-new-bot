@@ -2,8 +2,8 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.database import Base
-from src.database.models import Customer, Conversation, CollectedData, Review, MessageType
+from src.core.database.connection import Base
+from src.core.database.models import Customer, Conversation, CollectedData, Review, MessageType, ReviewStatus, Platform
 from datetime import datetime, timezone
 
 
@@ -24,7 +24,7 @@ def db_session():
 
 def test_customer_model(db_session):
     """测试Customer模型"""
-    from src.database.models import Platform
+    from src.core.database.models import Platform
     
     customer = Customer(
         platform=Platform.FACEBOOK,
@@ -45,8 +45,6 @@ def test_customer_model(db_session):
 
 def test_conversation_model(db_session):
     """测试Conversation模型"""
-    from src.database.models import Platform
-    
     # 先创建客户
     customer = Customer(
         platform=Platform.FACEBOOK,
@@ -60,8 +58,7 @@ def test_conversation_model(db_session):
         customer_id=customer.id,
         platform=Platform.FACEBOOK,
         message_type=MessageType.MESSAGE,
-        content="测试消息",
-        status="pending"
+        content="测试消息"
     )
     
     db_session.add(conversation)
@@ -70,12 +67,12 @@ def test_conversation_model(db_session):
     assert conversation.id is not None
     assert conversation.customer_id == customer.id
     assert conversation.platform == Platform.FACEBOOK
-    assert conversation.status == "pending"
 
 
 def test_collected_data_model(db_session):
     """测试CollectedData模型"""
     # 先创建客户和对话
+    from src.core.database.models import Platform
     customer = Customer(
         platform=Platform.FACEBOOK,
         platform_user_id="123456789",
@@ -95,9 +92,7 @@ def test_collected_data_model(db_session):
     
     collected_data = CollectedData(
         conversation_id=conversation.id,
-        field_name="email",
-        field_value="test@example.com",
-        field_type="email"
+        data={"email": "test@example.com", "type": "email"}
     )
     
     db_session.add(collected_data)
@@ -105,8 +100,7 @@ def test_collected_data_model(db_session):
     
     assert collected_data.id is not None
     assert collected_data.conversation_id == conversation.id
-    assert collected_data.field_name == "email"
-    assert collected_data.field_value == "test@example.com"
+    assert collected_data.data == {"email": "test@example.com", "type": "email"}
 
 
 def test_review_model(db_session):
@@ -130,8 +124,9 @@ def test_review_model(db_session):
     db_session.flush()
     
     review = Review(
+        customer_id=customer.id,
         conversation_id=conversation.id,
-        status="approved",
+        status=ReviewStatus.APPROVED,
         reviewed_by="admin",
         review_notes="测试审核"
     )
@@ -141,7 +136,7 @@ def test_review_model(db_session):
     
     assert review.id is not None
     assert review.conversation_id == conversation.id
-    assert review.status == "approved"
+    assert review.status == ReviewStatus.APPROVED
     assert review.review_notes == "测试审核"
 
 
@@ -167,14 +162,14 @@ def test_model_relationships(db_session):
     
     collected_data = CollectedData(
         conversation_id=conversation.id,
-        field_name="email",
-        field_value="test@example.com"
+        data={"email": "test@example.com", "type": "email"}
     )
     db_session.add(collected_data)
     
     review = Review(
+        customer_id=customer.id,
         conversation_id=conversation.id,
-        status="approved"
+        status=ReviewStatus.APPROVED
     )
     db_session.add(review)
     db_session.commit()

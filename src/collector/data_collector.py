@@ -2,9 +2,9 @@
 import re
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
-from src.database.models import CollectedData, Conversation
+from src.core.database.models import CollectedData, Conversation
 from src.collector.data_validator import DataValidator
-from src.config import yaml_config
+from src.core.config import yaml_config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,9 @@ class DataCollector:
         self.validator = DataValidator()
         self.required_fields = yaml_config.get("data_collection", {}).get("required_fields", [])
         self.optional_fields = yaml_config.get("data_collection", {}).get("optional_fields", [])
+        # 使用Repository模式
+        from src.core.database.repositories import CollectedDataRepository
+        self.collected_data_repo = CollectedDataRepository(db)
     
     def extract_info_from_message(self, message_content: str) -> Dict[str, Any]:
         """
@@ -95,17 +98,13 @@ class DataCollector:
         # 验证数据
         validation_result = self.validator.validate_collected_data(extracted_data)
         
-        # 创建收集数据记录
-        collected_data = CollectedData(
+        # 使用Repository创建收集数据记录
+        collected_data = self.collected_data_repo.create_collected_data(
             conversation_id=conversation_id,
             data=validation_result["data"],
             is_validated=validation_result["is_valid"],
             validation_errors=validation_result["errors"] if not validation_result["is_valid"] else None
         )
-        
-        self.db.add(collected_data)
-        self.db.commit()
-        self.db.refresh(collected_data)
         
         logger.info(f"Collected data for conversation {conversation_id}: {validation_result['data']}")
         
@@ -121,9 +120,8 @@ class DataCollector:
         Returns:
             收集数据记录，如果不存在则返回 None
         """
-        return self.db.query(CollectedData)\
-            .filter(CollectedData.conversation_id == conversation_id)\
-            .first()
+        # 使用Repository获取收集数据
+        return self.collected_data_repo.get_by_conversation_id(conversation_id)
     
     def is_data_complete(self, collected_data: CollectedData) -> bool:
         """

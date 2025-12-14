@@ -4,8 +4,8 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from src.database.database import engine
-from src.config import settings
+from src.core.database.connection import engine
+from src.core.config import settings
 from src.monitoring.alerts import alert_manager, AlertLevel
 import logging
 

@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.database import Base
+from src.core.database.connection import Base
 from src.ai.reply_generator import ReplyGenerator
 from src.ai.conversation_manager import ConversationManager
 

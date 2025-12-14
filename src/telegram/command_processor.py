@@ -1,8 +1,13 @@
 """Telegram Bot 命令处理器"""
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from src.database.models import Review, ReviewStatus, Conversation, Customer
-from src.database.database import get_db
+from src.core.database.models import Review, ReviewStatus, Conversation, Customer
+from src.core.database.connection import get_db
+from src.core.database.repositories import (
+    ConversationRepository,
+    ReviewRepository,
+    CustomerRepository
+)
 from datetime import datetime, timezone
 import logging
 
@@ -14,6 +19,10 @@ class CommandProcessor:
     
     def __init__(self, db: Session):
         self.db = db
+        # 使用Repository模式
+        self.conversation_repo = ConversationRepository(db)
+        self.review_repo = ReviewRepository(db)
+        self.customer_repo = CustomerRepository(db)
     
     def process_command(
         self,
@@ -68,9 +77,8 @@ class CommandProcessor:
             处理结果
         """
         try:
-            conversation = self.db.query(Conversation)\
-                .filter(Conversation.id == conversation_id)\
-                .first()
+            # 使用Repository获取对话
+            conversation = self.conversation_repo.get(conversation_id)
             
             if not conversation:
                 return {
@@ -78,31 +86,30 @@ class CommandProcessor:
                     "message": f"对话 {conversation_id} 不存在"
                 }
             
-            # 创建或更新审核记录
-            review = self.db.query(Review)\
-                .filter(Review.conversation_id == conversation_id)\
-                .first()
+            # 使用Repository获取或创建审核记录
+            review = self.review_repo.get_by_conversation_id(conversation_id)
             
             if not review:
-                review = Review(
+                review = self.review_repo.create_review(
                     customer_id=conversation.customer_id,
                     conversation_id=conversation_id,
                     status=ReviewStatus.APPROVED,
                     reviewed_by=reviewer,
-                    review_notes=notes,
-                    reviewed_at=datetime.now(timezone.utc)
+                    review_notes=notes
                 )
-                self.db.add(review)
             else:
-                review.status = ReviewStatus.APPROVED
-                review.reviewed_by = reviewer
-                review.review_notes = notes
-                review.reviewed_at = datetime.now(timezone.utc)
+                review = self.review_repo.update_review_status(
+                    review_id=review.id,
+                    status=ReviewStatus.APPROVED,
+                    reviewed_by=reviewer,
+                    review_notes=notes
+                )
             
-            # 标记对话为已处理
-            conversation.is_processed = True
-            
-            self.db.commit()
+            # 使用Repository更新对话状态
+            self.conversation_repo.update(
+                id=conversation_id,
+                is_processed=True
+            )
             
             logger.info(f"Review approved for conversation {conversation_id} by {reviewer}")
             
@@ -138,9 +145,8 @@ class CommandProcessor:
             处理结果
         """
         try:
-            conversation = self.db.query(Conversation)\
-                .filter(Conversation.id == conversation_id)\
-                .first()
+            # 使用Repository获取对话
+            conversation = self.conversation_repo.get(conversation_id)
             
             if not conversation:
                 return {
@@ -148,31 +154,30 @@ class CommandProcessor:
                     "message": f"对话 {conversation_id} 不存在"
                 }
             
-            # 创建或更新审核记录
-            review = self.db.query(Review)\
-                .filter(Review.conversation_id == conversation_id)\
-                .first()
+            # 使用Repository获取或创建审核记录
+            review = self.review_repo.get_by_conversation_id(conversation_id)
             
             if not review:
-                review = Review(
+                review = self.review_repo.create_review(
                     customer_id=conversation.customer_id,
                     conversation_id=conversation_id,
                     status=ReviewStatus.REJECTED,
                     reviewed_by=reviewer,
-                    review_notes=notes,
-                    reviewed_at=datetime.now(timezone.utc)
+                    review_notes=notes
                 )
-                self.db.add(review)
             else:
-                review.status = ReviewStatus.REJECTED
-                review.reviewed_by = reviewer
-                review.review_notes = notes
-                review.reviewed_at = datetime.now(timezone.utc)
+                review = self.review_repo.update_review_status(
+                    review_id=review.id,
+                    status=ReviewStatus.REJECTED,
+                    reviewed_by=reviewer,
+                    review_notes=notes
+                )
             
-            # 标记对话为已处理
-            conversation.is_processed = True
-            
-            self.db.commit()
+            # 使用Repository更新对话状态
+            self.conversation_repo.update(
+                id=conversation_id,
+                is_processed=True
+            )
             
             logger.info(f"Review rejected for conversation {conversation_id} by {reviewer}")
             
@@ -200,9 +205,8 @@ class CommandProcessor:
         Returns:
             详情信息
         """
-        conversation = self.db.query(Conversation)\
-            .filter(Conversation.id == conversation_id)\
-            .first()
+        # 使用Repository获取数据
+        conversation = self.conversation_repo.get(conversation_id)
         
         if not conversation:
             return {
@@ -210,13 +214,8 @@ class CommandProcessor:
                 "message": f"对话 {conversation_id} 不存在"
             }
         
-        customer = self.db.query(Customer)\
-            .filter(Customer.id == conversation.customer_id)\
-            .first()
-        
-        review = self.db.query(Review)\
-            .filter(Review.conversation_id == conversation_id)\
-            .first()
+        customer = self.customer_repo.get(conversation.customer_id)
+        review = self.review_repo.get_by_conversation_id(conversation_id)
         
         return {
             "success": True,

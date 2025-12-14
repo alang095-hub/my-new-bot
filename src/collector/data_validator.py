@@ -60,9 +60,20 @@ class DataValidator:
         # 移除常见分隔符
         cleaned = re.sub(r'[-.\s()]', '', phone)
         
-        # 检查是否符合任一模式
+        # 检查是否只包含数字和+号（+号只能在开头）
+        if not re.match(r'^\+?\d+$', cleaned):
+            return False, "电话号码包含非法字符"
+        
+        # 移除+号进行长度检查
+        digits_only = cleaned.lstrip('+')
+        
+        # 检查长度（电话号码应该在7-14位之间，15位太长）
+        if len(digits_only) < 7 or len(digits_only) > 14:
+            return False, "电话号码长度不正确"
+        
+        # 检查是否符合任一模式（使用清理后的电话号码）
         for pattern in DataValidator.PHONE_PATTERNS:
-            if re.search(pattern, phone):
+            if re.fullmatch(pattern, cleaned):
                 return True, None
         
         return False, "电话号码格式不正确"

@@ -2,6 +2,7 @@
 from typing import Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -69,16 +70,18 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         validate_assignment = True
+    
+    @property
+    def project_root(self) -> Path:
+        """获取项目根目录"""
+        return Path(__file__).parent.parent.parent.parent
+    
+    @property
+    def logs_dir(self) -> Path:
+        """获取日志目录"""
+        return self.project_root / "logs"
 
 
 # 全局配置实例
 settings = Settings()
-
-
-
-
-
-
-
-
 

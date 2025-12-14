@@ -1,21 +1,17 @@
-"""配置管理模块 - 模块化配置系统"""
-from .settings import Settings, settings
-from .loader import load_yaml_config, yaml_config
-from .validators import ConfigValidator
+"""配置模块 - 向后兼容导入"""
+# 向后兼容：从新位置导入
+from src.core.config import (
+    settings,
+    Settings,
+    load_yaml_config,
+    yaml_config,
+    ConfigValidator,
+)
 
 __all__ = [
-    'Settings',
     'settings',
+    'Settings',
     'load_yaml_config',
     'yaml_config',
     'ConfigValidator',
 ]
-
-
-
-
-
-
-
-
-

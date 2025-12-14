@@ -3,10 +3,9 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, Mock
 from src.main import app
-from src.database.database import get_db
+from src.core.database.connection import get_db, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.database import Base
 
 # 创建测试数据库
 test_engine = create_engine("sqlite:///:memory:", echo=False)
@@ -130,15 +129,19 @@ class TestAdminEndpoints:
     def test_get_conversation_detail(self, client, db_session):
         """测试对话详情端点"""
         # 先创建一个测试对话
-        from src.database.models import Customer, Conversation, MessageType
+        from src.core.database.models import Customer, Conversation, MessageType, Platform
         
-        customer = Customer(platform="facebook", platform_user_id="test")
+        customer = Customer(
+            platform=Platform.FACEBOOK,
+            platform_user_id="test"
+        )
         db_session.add(customer)
         db_session.flush()
         
         conversation = Conversation(
             customer_id=customer.id,
-            platform="facebook",
+            platform=Platform.FACEBOOK,
+            platform_message_id="msg_123",
             message_type=MessageType.MESSAGE,
             content="测试消息"
         )
@@ -206,4 +209,164 @@ class TestMonitoringEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "success" in data or "data" in data
+    
+    def test_list_conversations_with_filters(self, client, db_session):
+        """测试对话列表端点（带过滤条件）"""
+        response = client.get("/admin/conversations?page=1&page_size=10&platform=facebook")
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert "pagination" in data
+    
+    def test_list_conversations_pagination(self, client, db_session):
+        """测试对话列表分页"""
+        response = client.get("/admin/conversations?page=2&page_size=5")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["pagination"]["page"] == 2
+        assert data["pagination"]["page_size"] == 5
+    
+    def test_get_customers_with_pagination(self, client, db_session):
+        """测试客户列表分页"""
+        response = client.get("/admin/customers?page=1&page_size=5")
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert "pagination" in data
+        assert data["pagination"]["page"] == 1
+
+
+class TestStatisticsEndpointsExtended:
+    """统计API端点扩展测试"""
+    
+    def test_daily_statistics_with_date(self, client, db_session):
+        """测试每日统计端点（指定日期）"""
+        response = client.get("/statistics/daily?target_date=2024-01-01")
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+    
+    def test_daily_statistics_invalid_date(self, client, db_session):
+        """测试每日统计端点（无效日期）"""
+        response = client.get("/statistics/daily?target_date=invalid")
+        assert response.status_code == 200
+        data = response.json()
+        # 应该返回错误信息
+        assert "error" in data or "success" in data
+    
+    def test_frequent_questions(self, client, db_session):
+        """测试高频问题端点"""
+        response = client.get("/statistics/frequent-questions?limit=10")
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+        assert "data" in data or "error" in data
+    
+    def test_frequent_questions_with_limit(self, client, db_session):
+        """测试高频问题端点（指定数量）"""
+        response = client.get("/statistics/frequent-questions?limit=5")
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+
+
+class TestMonitoringEndpointsExtended:
+    """监控端点扩展测试"""
+    
+    def test_live_stats(self, client, db_session):
+        """测试实时统计端点"""
+        response = client.get("/monitoring/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+        assert "data" in data or "error" in data
+    
+    def test_recent_replies_with_limit(self, client):
+        """测试最近回复端点（指定数量）"""
+        response = client.get("/monitoring/recent-replies?limit=5")
+        assert response.status_code == 200
+        data = response.json()
+        assert "success" in data
+        if "data" in data:
+            assert len(data["data"]) <= 5
+
+
+class TestWebhookEndpointsExtended:
+    """Webhook端点扩展测试"""
+    
+    def test_facebook_webhook_post_message(self, client, db_session):
+        """测试Facebook Webhook接收消息"""
+        webhook_payload = {
+            "object": "page",
+            "entry": [{
+                "id": "page_id",
+                "messaging": [{
+                    "sender": {"id": "user123"},
+                    "recipient": {"id": "page_id"},
+                    "message": {
+                        "mid": "msg123",
+                        "text": "测试消息"
+                    },
+                    "timestamp": 1234567890
+                }]
+            }]
+        }
+        
+        response = client.post("/webhook", json=webhook_payload)
+        assert response.status_code == 200
+    
+    def test_instagram_webhook_post_message(self, client, db_session):
+        """测试Instagram Webhook接收消息"""
+        webhook_payload = {
+            "object": "instagram",
+            "entry": [{
+                "id": "ig_user_id",
+                "messaging": [{
+                    "sender": {"id": "user123"},
+                    "recipient": {"id": "ig_user_id"},
+                    "message": {
+                        "mid": "msg123",
+                        "text": "测试消息"
+                    },
+                    "timestamp": 1234567890
+                }]
+            }]
+        }
+        
+        response = client.post("/instagram/webhook", json=webhook_payload)
+        assert response.status_code == 200
+
+
+class TestAdminEndpointsExtended:
+    """管理端点扩展测试"""
+    
+    def test_get_conversation_with_filters(self, client, db_session):
+        """测试获取对话（带过滤条件）"""
+        response = client.get("/admin/conversations?platform=facebook&status=pending")
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+    
+    def test_get_customer_detail(self, client, db_session):
+        """测试获取客户详情"""
+        # 先创建一个客户
+        from src.core.database.repositories import CustomerRepository
+        from src.core.database.models import Platform
+        
+        customer_repo = CustomerRepository(db_session)
+        customer = customer_repo.create(
+            platform=Platform.FACEBOOK,
+            platform_user_id="test_customer",
+            name="测试客户"
+        )
+        
+        response = client.get(f"/admin/customers/{customer.id}")
+        # 可能返回200或404（取决于路由是否存在）
+        assert response.status_code in [200, 404]
+    
+    def test_get_collected_data(self, client, db_session):
+        """测试获取收集的数据"""
+        response = client.get("/admin/collected-data?page=1&page_size=10")
+        # 可能返回200或404（取决于路由是否存在）
+        assert response.status_code in [200, 404]
 

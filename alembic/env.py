@@ -9,9 +9,9 @@ import sys
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from src.database.database import Base
-from src.database.models import *  # noqa
-from src.config import settings
+from src.core.database.connection import Base
+from src.core.database.models import *  # noqa
+from src.core.config import settings
 
 # this is the Alembic Config object
 config = context.config

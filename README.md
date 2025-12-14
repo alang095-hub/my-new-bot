@@ -129,6 +129,7 @@ uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 项目文档已整理到 `docs/` 目录，按类别分类：
 
 - **[文档索引](docs/README.md)** - 查看所有文档的完整索引
+- **[重构指南](docs/REFACTORING_GUIDE.md)** - 了解新的项目结构和迁移指南
 - **部署文档** - 查看 [docs/deployment/](docs/deployment/) 了解部署指南
 - **功能指南** - 查看 [docs/guides/](docs/guides/) 了解功能使用方法
 - **架构文档** - 查看 [docs/architecture/](docs/architecture/) 了解系统架构
@@ -157,30 +158,30 @@ uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 project/
 ├── src/
+│   ├── core/              # 核心基础模块（新增）
+│   │   ├── config/        # 统一配置管理
+│   │   ├── database/      # 数据库（含Repository模式）
+│   │   ├── exceptions/    # 异常定义
+│   │   └── logging/       # 日志配置
+│   ├── services/          # 业务服务层（重组）
+│   │   ├── ai/            # AI服务
+│   │   ├── collector/     # 数据收集服务
+│   │   ├── notification/  # 通知服务
+│   │   └── statistics/    # 统计服务
+│   ├── api/               # API路由（重组）
+│   │   ├── v1/            # API版本管理
+│   │   │   ├── webhooks/  # Webhook路由
+│   │   │   ├── admin/     # 管理API
+│   │   │   ├── monitoring/# 监控API
+│   │   │   └── statistics/# 统计API
+│   │   └── middleware/    # 中间件
+│   ├── platforms/         # 平台集成
+│   ├── processors/        # 消息处理器
+│   ├── business/          # 业务模块
 │   ├── facebook/          # Facebook 集成模块
-│   │   ├── api_client.py      # Facebook API 客户端
-│   │   ├── message_parser.py  # 消息解析器
-│   │   └── webhook_handler.py # Webhook 处理器
-│   ├── ai/                # AI 模块
-│   │   ├── conversation_manager.py  # 对话管理
-│   │   ├── prompt_templates.py      # 提示词模板
-│   │   └── reply_generator.py       # 回复生成器
-│   ├── collector/         # 资料收集与过滤
-│   │   ├── data_collector.py   # 资料收集
-│   │   ├── data_validator.py   # 数据验证
-│   │   └── filter_engine.py    # 过滤引擎
-│   ├── integrations/      # 第三方集成
-│   │   ├── manychat_client.py      # ManyChat 客户端
-│   │   ├── botcake_client.py       # Botcake 客户端
-│   │   └── integration_manager.py  # 集成管理器
+│   ├── instagram/         # Instagram 集成模块
 │   ├── telegram/          # Telegram Bot
-│   │   ├── bot_handler.py         # Bot 处理器
-│   │   ├── command_processor.py   # 命令处理
-│   │   └── notification_sender.py # 通知发送
-│   ├── database/          # 数据库
-│   │   ├── database.py    # 数据库连接
-│   │   └── models.py      # 数据模型
-│   ├── config.py          # 配置管理
+│   ├── integrations/      # 第三方集成
 │   ├── main.py            # 主应用入口
 │   └── main_processor.py  # 消息处理流程
 ├── alembic/               # 数据库迁移

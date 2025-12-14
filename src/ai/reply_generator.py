@@ -2,11 +2,11 @@
 import openai
 import re
 from typing import List, Dict, Any, Optional
-from src.config import settings
+from src.core.config import settings
 from src.ai.prompt_templates import PromptTemplates
 from src.ai.conversation_manager import ConversationManager
-from src.utils.exceptions import APIError, ProcessingError
-from src.database.models import Conversation
+from src.core.exceptions import APIError, ProcessingError
+from src.core.database.models import Conversation
 from sqlalchemy.orm import Session
 import logging
 
@@ -138,7 +138,7 @@ class ReplyGenerator:
             return None
         
         # 获取对话历史，统计已发送的AI回复数量
-        history = self.conversation_manager.get_conversation_history(customer_id, limit=10)
+        history = await self.conversation_manager.get_conversation_history(customer_id, limit=10)
         ai_reply_count = sum(1 for msg in history if msg.get("role") == "assistant")
         
         # 只在前三个问题中使用预设回复（即AI回复数量少于3条时）
@@ -186,7 +186,7 @@ class ReplyGenerator:
             .all()
         
         # Check if any reply contains Telegram group link
-        from src.config import yaml_config
+        from src.core.config import yaml_config
         telegram_config = yaml_config.get("telegram_groups", {})
         main_group = telegram_config.get("main_group", "@your_group")
         
@@ -243,7 +243,7 @@ class ReplyGenerator:
             return reply
         
         # Check if reply already contains Telegram link
-        from src.config import yaml_config
+        from src.core.config import yaml_config
         telegram_config = yaml_config.get("telegram_groups", {})
         main_group = telegram_config.get("main_group", "@your_group")
         
@@ -278,7 +278,8 @@ class ReplyGenerator:
         self,
         customer_id: int,
         message_content: str,
-        customer_name: Optional[str] = None
+        customer_name: Optional[str] = None,
+        conversation_id: Optional[int] = None
     ) -> Optional[str]:
         """
         生成 AI 回复
@@ -297,7 +298,7 @@ class ReplyGenerator:
             return None
         
         # 检查是否应该使用预设回复（前三个标准问题）
-        preset_reply = self._check_preset_reply(customer_id, message_content)
+        preset_reply = await self._check_preset_reply(customer_id, message_content)
         if preset_reply:
             # Ensure Telegram link is included in preset reply if needed
             preset_reply = self._ensure_telegram_link_in_reply(preset_reply, customer_id)
@@ -305,19 +306,36 @@ class ReplyGenerator:
         
         try:
             # 获取对话历史
-            history = self.conversation_manager.get_conversation_history(
+            history = await self.conversation_manager.get_conversation_history(
                 customer_id,
                 limit=10
             )
             
-            # 获取提示词类型（从配置中读取）
-            prompt_type = self.templates.templates.get("prompt_type")
+            # A/B测试：选择提示词版本
+            prompt_version = None
+            system_prompt = None
+            
+            try:
+                from src.ai.prompt_ab_testing import PromptABTesting
+                ab_testing = PromptABTesting(self.db)
+                prompt_version = ab_testing.select_version(customer_id)
+                
+                if prompt_version:
+                    system_prompt = prompt_version.prompt_content
+                    logger.info(f"Using prompt version: {prompt_version.version_code} for customer {customer_id}")
+            except Exception as e:
+                logger.warning(f"Failed to select prompt version: {e}")
+            
+            # 如果没有选择版本，使用默认提示词
+            if not system_prompt:
+                prompt_type = self.templates.templates.get("prompt_type")
+                system_prompt = self.templates.build_system_prompt(prompt_type=prompt_type)
             
             # 构建消息列表
             messages = [
                 {
                     "role": "system",
-                    "content": self.templates.build_system_prompt(prompt_type=prompt_type)
+                    "content": system_prompt
                 }
             ]
             
@@ -336,14 +354,77 @@ class ReplyGenerator:
             
             # 调用 OpenAI API
             # 严格限制回复长度：max_tokens=45 约等于30个中文字符或30个英文单词
-            response = self.client.chat.completions.create(
-                model=settings.openai_model,
-                messages=messages,
-                temperature=settings.openai_temperature,
-                max_tokens=45  # 严格控制为50字以内（留出buffer）
-            )
+            import time
+            start_time = time.time()
             
-            reply = response.choices[0].message.content.strip()
+            try:
+                response = self.client.chat.completions.create(
+                    model=settings.openai_model,
+                    messages=messages,
+                    temperature=settings.openai_temperature,
+                    max_tokens=45  # 严格控制为50字以内（留出buffer）
+                )
+                
+                response_time_ms = (time.time() - start_time) * 1000
+                
+                # 记录API使用
+                tokens_used = None
+                try:
+                    from src.monitoring.api_usage_tracker import APIUsageTracker, APIType
+                    usage_tracker = APIUsageTracker(self.db)
+                    
+                    # 计算token使用量
+                    tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else None
+                    
+                    usage_tracker.record_api_call(
+                        api_type=APIType.OPENAI.value,
+                        endpoint="chat.completions",
+                        success=True,
+                        response_time_ms=response_time_ms,
+                        tokens_used=tokens_used,
+                        model=settings.openai_model,
+                        metadata={"customer_id": customer_id}
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to record API usage: {e}")
+                
+                # 记录A/B测试使用情况
+                if prompt_version and conversation_id:
+                    try:
+                        from src.ai.prompt_ab_testing import PromptABTesting
+                        ab_testing = PromptABTesting(self.db)
+                        ab_testing.record_usage(
+                            prompt_version_id=prompt_version.id,
+                            customer_id=customer_id,
+                            conversation_id=conversation_id,
+                            response_time_ms=int(response_time_ms),
+                            tokens_used=tokens_used,
+                            success=True
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to record A/B testing usage: {e}")
+                
+                reply = response.choices[0].message.content.strip()
+            except Exception as e:
+                response_time_ms = (time.time() - start_time) * 1000
+                
+                # 记录失败的API调用
+                try:
+                    from src.monitoring.api_usage_tracker import APIUsageTracker, APIType
+                    usage_tracker = APIUsageTracker(self.db)
+                    usage_tracker.record_api_call(
+                        api_type=APIType.OPENAI.value,
+                        endpoint="chat.completions",
+                        success=False,
+                        response_time_ms=response_time_ms,
+                        error_message=str(e),
+                        model=settings.openai_model,
+                        metadata={"customer_id": customer_id}
+                    )
+                except Exception:
+                    pass
+                
+                raise
             
             # Ensure Telegram group link is included if customer hasn't received it
             reply = self._ensure_telegram_link_in_reply(reply, customer_id)

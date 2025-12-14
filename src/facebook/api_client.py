@@ -2,7 +2,7 @@
 import httpx
 import asyncio
 from typing import Dict, Any, Optional, List
-from src.config import settings
+from src.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class FacebookAPIClient:
                     # 检查是否是24小时窗口限制错误
                     if isinstance(result, dict) and result.get("24h_window_limit"):
                         # 抛出特殊异常，让调用方知道这是24小时窗口限制
-                        from src.utils.exceptions import APIError
+                        from src.core.exceptions import APIError
                         raise APIError(
                             message="24小时消息发送窗口限制",
                             api_name="Facebook",

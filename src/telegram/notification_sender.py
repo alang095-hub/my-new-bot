@@ -1,8 +1,8 @@
 """Telegram notification sender"""
 import httpx
 from typing import Dict, Any, Optional
-from src.config import settings, yaml_config
-from src.database.models import Conversation, Customer, CollectedData
+from src.core.config import settings, yaml_config
+from src.core.database.models import Conversation, Customer, CollectedData
 import logging
 
 logger = logging.getLogger(__name__)

@@ -5,9 +5,9 @@ from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.database import Base
+from src.core.database.connection import Base
 from src.main import app
-from src.database.models import Customer, Conversation, MessageType, Priority
+from src.core.database.models import Customer, Conversation, MessageType, Priority
 
 
 @pytest.fixture

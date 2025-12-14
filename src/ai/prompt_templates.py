@@ -1,6 +1,6 @@
 """AI 回复模板和提示词管理"""
 from typing import Dict, Any, Optional
-from src.config import yaml_config
+from src.core.config import yaml_config
 
 
 class PromptTemplates:

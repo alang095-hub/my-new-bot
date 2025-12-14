@@ -1,7 +1,7 @@
 """Instagram Graph API 客户端"""
 import httpx
 from typing import Dict, Any, Optional
-from src.config import settings
+from src.core.config import settings
 
 
 class InstagramAPIClient:

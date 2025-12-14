@@ -3,7 +3,12 @@ from datetime import date, datetime, timezone
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sql_func
-from src.database.statistics_models import DailyStatistics, CustomerInteraction, FrequentQuestion
+from src.core.database.statistics_models import DailyStatistics, CustomerInteraction, FrequentQuestion
+from src.core.database.repositories import (
+    DailyStatisticsRepository,
+    CustomerInteractionRepository,
+    FrequentQuestionRepository
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,6 +19,10 @@ class StatisticsTracker:
     
     def __init__(self, db: Session):
         self.db = db
+        # 使用Repository模式
+        self.daily_stats_repo = DailyStatisticsRepository(db)
+        self.interaction_repo = CustomerInteractionRepository(db)
+        self.frequent_question_repo = FrequentQuestionRepository(db)
     
     def get_or_create_daily_statistics(self, target_date: Optional[date] = None) -> DailyStatistics:
         """获取或创建每日统计数据"""
@@ -21,17 +30,8 @@ class StatisticsTracker:
             # 使用UTC时区的今天日期
             target_date = datetime.now(timezone.utc).date()
         
-        stats = self.db.query(DailyStatistics)\
-            .filter(DailyStatistics.date == target_date)\
-            .first()
-        
-        if not stats:
-            stats = DailyStatistics(date=target_date)
-            self.db.add(stats)
-            self.db.commit()
-            self.db.refresh(stats)
-        
-        return stats
+        # 使用Repository获取或创建
+        return self.daily_stats_repo.get_or_create_by_date(target_date)
     
     def record_customer_interaction(
         self,
@@ -62,7 +62,8 @@ class StatisticsTracker:
         if len(message_summary) > 500:
             message_summary = message_summary[:497] + "..."
         
-        interaction = CustomerInteraction(
+        # 使用Repository创建交互记录
+        interaction = self.interaction_repo.create_interaction(
             customer_id=customer_id,
             date=datetime.now(timezone.utc).date(),
             platform=platform,
@@ -73,10 +74,6 @@ class StatisticsTracker:
             group_invitation_sent=group_invitation_sent
         )
         
-        self.db.add(interaction)
-        self.db.commit()
-        self.db.refresh(interaction)
-        
         # 更新每日统计
         self._update_daily_statistics()
         
@@ -86,20 +83,25 @@ class StatisticsTracker:
         """标记客户已加入群组"""
         today = datetime.now(timezone.utc).date()
         
-        # 更新今天的交互记录
-        interactions = self.db.query(CustomerInteraction)\
-            .filter(
-                CustomerInteraction.customer_id == customer_id,
-                CustomerInteraction.date == today,
-                CustomerInteraction.joined_group == False
-            )\
-            .all()
+        # 使用Repository获取今天的交互记录
+        interactions = self.interaction_repo.get_by_customer_and_date(customer_id, today)
         
-        for interaction in interactions:
-            interaction.joined_group = True
+        # 过滤未加入群组的记录
+        interactions_to_update = [
+            i for i in interactions 
+            if not i.joined_group
+        ]
         
-        if interactions:
-            self.db.commit()
+        # 更新记录
+        updated = False
+        for interaction in interactions_to_update:
+            self.interaction_repo.update(
+                id=interaction.id,
+                joined_group=True
+            )
+            updated = True
+        
+        if updated:
             self._update_daily_statistics()
             return True
         
@@ -109,20 +111,25 @@ class StatisticsTracker:
         """标记客户已开单"""
         today = datetime.now(timezone.utc).date()
         
-        # 更新今天的交互记录
-        interactions = self.db.query(CustomerInteraction)\
-            .filter(
-                CustomerInteraction.customer_id == customer_id,
-                CustomerInteraction.date == today,
-                CustomerInteraction.order_created == False
-            )\
-            .all()
+        # 使用Repository获取今天的交互记录
+        interactions = self.interaction_repo.get_by_customer_and_date(customer_id, today)
         
-        for interaction in interactions:
-            interaction.order_created = True
+        # 过滤未开单的记录
+        interactions_to_update = [
+            i for i in interactions 
+            if not i.order_created
+        ]
         
-        if interactions:
-            self.db.commit()
+        # 更新记录
+        updated = False
+        for interaction in interactions_to_update:
+            self.interaction_repo.update(
+                id=interaction.id,
+                order_created=True
+            )
+            updated = True
+        
+        if updated:
             self._update_daily_statistics()
             return True
         
@@ -136,39 +143,30 @@ class StatisticsTracker:
         if not question_text:
             return
         
-        # 查找或创建问题记录
-        question = self.db.query(FrequentQuestion)\
-            .filter(FrequentQuestion.question_text == question_text)\
-            .first()
+        # 使用Repository增加问题出现次数
+        question = self.frequent_question_repo.increment_occurrence(question_text)
         
-        if question:
-            # 更新出现次数
-            question.occurrence_count += 1
-            question.last_seen = datetime.now(timezone.utc)
-            
-            # 更新示例回复（保留最新的几个）
-            if sample_response:
-                sample_responses = question.sample_responses or []
-                sample_responses.append({
-                    "response": sample_response[:200],
-                    "time": datetime.now(timezone.utc).isoformat()
-                })
-                # 只保留最近5个
-                question.sample_responses = sample_responses[-5:]
-        else:
-            # 创建新问题
-            question = FrequentQuestion(
-                question_text=question_text,
-                question_category=category,
-                occurrence_count=1,
-                sample_responses=[{
-                    "response": sample_response[:200] if sample_response else None,
-                    "time": datetime.now(timezone.utc).isoformat()
-                }] if sample_response else []
-            )
-            self.db.add(question)
+        # 更新其他字段
+        update_data = {
+            "last_seen": datetime.now(timezone.utc)
+        }
         
-        self.db.commit()
+        if category:
+            update_data["question_category"] = category
+        
+        # 更新示例回复（保留最新的几个）
+        if sample_response:
+            sample_responses = question.sample_responses or []
+            sample_responses.append({
+                "response": sample_response[:200],
+                "time": datetime.now(timezone.utc).isoformat()
+            })
+            # 只保留最近5个
+            update_data["sample_responses"] = sample_responses[-5:]
+        
+        # 更新记录
+        if update_data:
+            self.frequent_question_repo.update(question.id, **update_data)
     
     def _update_daily_statistics(self):
         """更新每日统计数据"""
@@ -266,10 +264,10 @@ class StatisticsTracker:
     
     def get_frequent_questions(self, limit: int = 20) -> list:
         """获取高频问题列表"""
-        questions = self.db.query(FrequentQuestion)\
-            .order_by(FrequentQuestion.occurrence_count.desc())\
-            .limit(limit)\
-            .all()
+        # 使用Repository获取所有问题，然后排序
+        all_questions = self.frequent_question_repo.get_all(limit=limit * 2)  # 获取更多以便排序
+        # 按出现次数排序
+        questions = sorted(all_questions, key=lambda x: x.occurrence_count, reverse=True)[:limit]
         
         return [
             {

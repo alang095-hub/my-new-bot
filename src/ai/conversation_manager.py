@@ -1,8 +1,9 @@
 """对话上下文管理"""
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
-from src.database.models import Conversation, Customer, Platform
-from src.database.database import get_db
+from src.core.database.models import Conversation, Customer, Platform, MessageType
+from src.core.database.connection import get_db
+from src.core.database.repositories import CustomerRepository, ConversationRepository
 
 
 class ConversationManager:
@@ -10,14 +11,16 @@ class ConversationManager:
     
     def __init__(self, db: Session):
         self.db = db
+        self.customer_repo = CustomerRepository(db)
+        self.conversation_repo = ConversationRepository(db)
     
-    def get_conversation_history(
+    async def get_conversation_history(
         self,
         customer_id: int,
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         """
-        获取对话历史
+        获取对话历史（带缓存）
         
         Args:
             customer_id: 客户 ID
@@ -26,11 +29,22 @@ class ConversationManager:
         Returns:
             对话历史列表
         """
-        conversations = self.db.query(Conversation)\
-            .filter(Conversation.customer_id == customer_id)\
-            .order_by(Conversation.created_at.desc())\
-            .limit(limit)\
-            .all()
+        # 尝试从缓存获取
+        from src.core.cache import conversation_cache
+        
+        cache_key = f"conversation_history:{customer_id}:{limit}"
+        cached_history = await conversation_cache.get(cache_key)
+        if cached_history is not None:
+            return cached_history
+        
+        # 使用Repository获取对话历史
+        conversations = self.conversation_repo.get_customer_conversations(
+            customer_id=customer_id,
+            skip=0,
+            limit=limit
+        )
+        # 按时间倒序排列
+        conversations = sorted(conversations, key=lambda x: x.created_at, reverse=True)
         
         from datetime import timezone
         
@@ -57,6 +71,9 @@ class ConversationManager:
                     "content": conv.ai_reply_content,
                     "timestamp": ai_reply_at.isoformat() if ai_reply_at else None
                 })
+        
+        # 缓存结果
+        await conversation_cache.set(cache_key, history)
         
         return history
     
@@ -95,19 +112,23 @@ class ConversationManager:
         except (KeyError, AttributeError):
             platform_enum = Platform.FACEBOOK  # 默认值
         
-        conversation = Conversation(
+        # 转换message_type字符串为枚举
+        message_type_enum = None
+        if message_type:
+            try:
+                message_type_enum = MessageType[message_type.upper()] if isinstance(message_type, str) else message_type
+            except (KeyError, AttributeError):
+                message_type_enum = MessageType.MESSAGE  # 默认值
+        
+        # 使用Repository创建对话
+        conversation = self.conversation_repo.create_conversation(
             customer_id=customer_id,
-            platform_message_id=msg_id,
-            facebook_message_id=facebook_message_id or msg_id,  # 兼容字段
             platform=platform_enum,
-            message_type=message_type,
-            content=content,
+            platform_message_id=msg_id,
+            message_type=message_type_enum or MessageType.MESSAGE,
+            content=content or "",
             raw_data=raw_data
         )
-        
-        self.db.add(conversation)
-        self.db.commit()
-        self.db.refresh(conversation)
         
         return conversation
     
@@ -126,22 +147,18 @@ class ConversationManager:
         Returns:
             更新的对话记录
         """
-        conversation = self.db.query(Conversation)\
-            .filter(Conversation.id == conversation_id)\
-            .first()
-        
-        if conversation:
-            conversation.ai_replied = True
-            conversation.ai_reply_content = reply_content
-            from datetime import datetime, timezone
-            conversation.ai_reply_at = datetime.now(timezone.utc)  # 使用UTC时区
-            
-            self.db.commit()
-            self.db.refresh(conversation)
+        # 使用Repository更新对话
+        from datetime import datetime, timezone
+        conversation = self.conversation_repo.update(
+            id=conversation_id,
+            ai_replied=True,
+            ai_reply_content=reply_content,
+            ai_reply_at=datetime.now(timezone.utc)
+        )
         
         return conversation
     
-    def get_or_create_customer(
+    async def get_or_create_customer(
         self,
         platform_user_id: str = None,
         facebook_id: str = None,
@@ -170,39 +187,38 @@ class ConversationManager:
         except (KeyError, AttributeError):
             platform_enum = Platform.FACEBOOK  # 默认值
         
-        # 查询客户（根据平台和用户ID）
-        customer = self.db.query(Customer)\
-            .filter(
-                Customer.platform == platform_enum,
-                Customer.platform_user_id == user_id
-            )\
-            .first()
+        # 尝试从缓存获取
+        from src.core.cache import customer_cache
         
-        # 如果没有找到，尝试通过facebook_id查找（向后兼容）
-        if not customer and facebook_id:
-            customer = self.db.query(Customer)\
-                .filter(Customer.facebook_id == facebook_id)\
-                .first()
+        cache_key = f"customer:{platform_enum.value}:{user_id}"
+        cached_customer = await customer_cache.get(cache_key)
+        if cached_customer is not None:
+            # 如果提供了新名称且客户名称为空，更新并清除缓存
+            if name and not cached_customer.name:
+                cached_customer = self.customer_repo.update(
+                    id=cached_customer.id,
+                    name=name
+                )
+                await customer_cache.set(cache_key, cached_customer)
+            return cached_customer
         
-        if not customer:
-            customer = Customer(
-                platform=platform_enum,
-                platform_user_id=user_id,
-                facebook_id=facebook_id or user_id,  # 兼容字段
+        # 使用Repository获取或创建客户
+        customer = self.customer_repo.get_or_create(
+            platform=platform_enum,
+            platform_user_id=user_id,
+            name=name,
+            facebook_id=facebook_id or user_id  # 兼容字段
+        )
+        
+        # 如果客户已存在但信息不完整，更新信息
+        if name and not customer.name:
+            customer = self.customer_repo.update(
+                id=customer.id,
                 name=name
             )
-            self.db.add(customer)
-            self.db.commit()
-            self.db.refresh(customer)
-        elif name and not customer.name:
-            customer.name = name
-            # 更新平台相关字段（如果之前没有设置）
-            if not customer.platform:
-                customer.platform = platform_enum
-            if not customer.platform_user_id:
-                customer.platform_user_id = user_id
-            self.db.commit()
-            self.db.refresh(customer)
+        
+        # 缓存客户信息
+        await customer_cache.set(cache_key, customer)
         
         return customer
 

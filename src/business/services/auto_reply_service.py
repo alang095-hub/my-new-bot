@@ -60,10 +60,12 @@ class AutoReplyService(BaseBusinessService):
         # 生成AI回复
         reply_generator = ReplyGenerator(db)
         try:
+            conversation_id = context.get("conversation_id")
             ai_reply = await reply_generator.generate_reply(
                 customer_id=customer_id,
                 message_content=message_data.get("content", ""),
-                customer_name=customer.name if customer else None
+                customer_name=customer.name if customer else None,
+                conversation_id=conversation_id
             )
         except Exception as e:
             logger.error(f"AI回复生成失败: {str(e)}", exc_info=True)
@@ -73,6 +75,19 @@ class AutoReplyService(BaseBusinessService):
             error_type = "AI_REPLY_FAILED"
             if "token" in error_msg.lower() or "expired" in error_msg.lower() or "unauthorized" in error_msg.lower():
                 error_type = "TOKEN_EXPIRED"
+            
+            # 记录失败率
+            try:
+                from src.monitoring.reply_failure_tracker import reply_failure_tracker
+                reply_failure_tracker.record_failure(
+                    failure_type=error_type,
+                    error_message=error_msg,
+                    customer_id=customer_id,
+                    page_id=page_id,
+                    metadata={"message_content": message_data.get("content", "")[:100]}
+                )
+            except Exception:
+                pass  # 不影响主流程
             
             await self._send_error_notification(
                 error_type=error_type,
@@ -151,6 +166,13 @@ class AutoReplyService(BaseBusinessService):
                 conversation_manager = ConversationManager(db)
                 conversation_manager.update_ai_reply(conversation_id, ai_reply)
             
+            # 记录成功
+            try:
+                from src.monitoring.reply_failure_tracker import reply_failure_tracker
+                reply_failure_tracker.record_success()
+            except Exception:
+                pass
+            
             return {
                 "success": True,
                 "ai_reply": ai_reply,
@@ -167,6 +189,19 @@ class AutoReplyService(BaseBusinessService):
             # 检查是否是Token相关错误
             if "token" in error_msg.lower() or "expired" in error_msg.lower() or "unauthorized" in error_msg.lower() or "401" in error_msg or "403" in error_msg:
                 error_type = "TOKEN_EXPIRED"
+            
+            # 记录失败率
+            try:
+                from src.monitoring.reply_failure_tracker import reply_failure_tracker
+                reply_failure_tracker.record_failure(
+                    failure_type=error_type,
+                    error_message=error_msg,
+                    customer_id=customer_id,
+                    page_id=page_id,
+                    metadata={"ai_reply": ai_reply[:100] if ai_reply else None}
+                )
+            except Exception:
+                pass
             
             await self._send_error_notification(
                 error_type=error_type,

@@ -121,7 +121,7 @@ class RealtimeMonitor:
             实时统计数据
         """
         from datetime import date, timedelta
-        from src.database.models import Conversation
+        from src.core.database.models import Conversation
         from sqlalchemy import func
 
         # 使用UTC时区的今天日期

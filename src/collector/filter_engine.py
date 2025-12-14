@@ -1,8 +1,8 @@
 """过滤规则引擎"""
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from src.database.models import Conversation, Priority
-from src.config import yaml_config
+from src.core.database.models import Conversation, Priority
+from src.core.config import yaml_config
 import re
 import logging
 

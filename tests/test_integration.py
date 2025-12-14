@@ -4,8 +4,9 @@ import asyncio
 from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.database import Base
-from src.database.models import Customer, Conversation, MessageType, Priority
+from src.core.database.connection import Base
+from src.core.database.models import Customer, Conversation, MessageType, Priority, Platform
+from src.core.database.repositories import CustomerRepository, ConversationRepository
 from src.main_processor import process_platform_message
 from src.facebook.message_parser import FacebookMessageParser
 from src.collector.data_collector import DataCollector
@@ -60,31 +61,29 @@ async def test_complete_facebook_message_flow(db_session, sample_webhook_message
     assert message_data["sender_id"] == "user_456"
     assert "你好" in message_data["content"]
     
-    # 2. 创建或获取客户
-    customer = db_session.query(Customer).filter(
-        Customer.platform_user_id == message_data["sender_id"]
-    ).first()
+    # 2. 创建或获取客户（使用Repository）
+    customer_repo = CustomerRepository(db_session)
+    customer = customer_repo.get_by_platform_user_id(
+        Platform.FACEBOOK,
+        message_data["sender_id"]
+    )
     
     if not customer:
-        customer = Customer(
-            platform="facebook",
+        customer = customer_repo.get_or_create(
+            platform=Platform.FACEBOOK,
             platform_user_id=message_data["sender_id"],
             facebook_id=message_data["sender_id"]
         )
-        db_session.add(customer)
-        db_session.flush()
     
-    # 3. 创建对话记录
-    conversation = Conversation(
+    # 3. 创建对话记录（使用Repository）
+    conversation_repo = ConversationRepository(db_session)
+    conversation = conversation_repo.create_conversation(
         customer_id=customer.id,
-        platform="facebook",
+        platform=Platform.FACEBOOK,
         platform_message_id=message_data["message_id"],
         message_type=MessageType.MESSAGE,
-        content=message_data["content"],
-        status="pending"
+        content=message_data["content"]
     )
-    db_session.add(conversation)
-    db_session.flush()
     
     # 4. 测试数据收集
     collector = DataCollector(db_session)
@@ -117,10 +116,8 @@ async def test_complete_facebook_message_flow(db_session, sample_webhook_message
         assert reply is not None
         assert len(reply) > 0
     
-    # 7. 验证数据库记录
-    saved_conversation = db_session.query(Conversation).filter(
-        Conversation.id == conversation.id
-    ).first()
+    # 7. 验证数据库记录（使用Repository）
+    saved_conversation = conversation_repo.get(conversation.id)
     
     assert saved_conversation is not None
     assert saved_conversation.customer_id == customer.id
@@ -130,14 +127,13 @@ async def test_complete_facebook_message_flow(db_session, sample_webhook_message
 @pytest.mark.asyncio
 async def test_message_processing_pipeline(db_session):
     """测试消息处理管道"""
-    # 创建测试数据
-    customer = Customer(
-        platform="facebook",
+    # 创建测试数据（使用Repository）
+    customer_repo = CustomerRepository(db_session)
+    customer = customer_repo.create(
+        platform=Platform.FACEBOOK,
         platform_user_id="test_user",
         name="测试用户"
     )
-    db_session.add(customer)
-    db_session.flush()
     
     message_data = {
         "message_id": "test_msg_123",
@@ -201,24 +197,23 @@ async def test_error_handling_in_workflow(db_session):
 @pytest.mark.asyncio
 async def test_telegram_notification_flow(db_session):
     """测试Telegram通知流程"""
-    # 创建测试对话
-    customer = Customer(
-        platform="facebook",
+    # 创建测试对话（使用Repository）
+    customer_repo = CustomerRepository(db_session)
+    customer = customer_repo.create(
+        platform=Platform.FACEBOOK,
         platform_user_id="test_user"
     )
-    db_session.add(customer)
-    db_session.flush()
     
-    conversation = Conversation(
+    conversation_repo = ConversationRepository(db_session)
+    conversation = conversation_repo.create_conversation(
         customer_id=customer.id,
-        platform="facebook",
+        platform=Platform.FACEBOOK,
+        platform_message_id="test_msg_123",
         message_type=MessageType.MESSAGE,
-        content="测试消息",
-        status="pending",
-        priority=Priority.HIGH
+        content="测试消息"
     )
-    db_session.add(conversation)
-    db_session.commit()
+    # 更新优先级
+    conversation_repo.update(conversation.id, priority=Priority.HIGH)
     
     # 模拟Telegram通知发送
     with patch('src.telegram.notification_sender.NotificationSender.send_notification') as mock_send:

@@ -1,0 +1,77 @@
+{
+  "timestamp": "2025-12-14T18:47:12.384614",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "warned": 0,
+    "skipped": 0,
+    "pass_rate": 100.0
+  },
+  "results": [
+    {
+      "name": "环境配置",
+      "status": "PASS",
+      "message": "所有必需的环境变量已配置",
+      "duration": 0.2760016918182373,
+      "timestamp": "2025-12-14T18:46:58.950378",
+      "error": null
+    },
+    {
+      "name": "配置加载",
+      "status": "PASS",
+      "message": "配置加载成功",
+      "duration": 3.337860107421875e-06,
+      "timestamp": "2025-12-14T18:46:58.950437",
+      "error": null
+    },
+    {
+      "name": "数据库连接",
+      "status": "PASS",
+      "message": "数据库连接成功",
+      "duration": 0.40155863761901855,
+      "timestamp": "2025-12-14T18:46:59.352012",
+      "error": null
+    },
+    {
+      "name": "服务启动",
+      "status": "PASS",
+      "message": "FastAPI应用创建成功",
+      "duration": 0.4945793151855469,
+      "timestamp": "2025-12-14T18:46:59.846635",
+      "error": null
+    },
+    {
+      "name": "健康检查端点",
+      "status": "PASS",
+      "message": "健康检查通过: healthy",
+      "duration": 2.732102394104004,
+      "timestamp": "2025-12-14T18:47:05.096336",
+      "error": null
+    },
+    {
+      "name": "API端点 - 根端点",
+      "status": "PASS",
+      "message": "端点 / 正常",
+      "duration": 2.4493582248687744,
+      "timestamp": "2025-12-14T18:47:07.545734",
+      "error": null
+    },
+    {
+      "name": "API端点 - 性能指标端点",
+      "status": "PASS",
+      "message": "端点 /metrics 正常",
+      "duration": 2.440364122390747,
+      "timestamp": "2025-12-14T18:47:09.986170",
+      "error": null
+    },
+    {
+      "name": "API端点 - 每日统计端点",
+      "status": "PASS",
+      "message": "端点 /statistics/daily 正常",
+      "duration": 2.396711587905884,
+      "timestamp": "2025-12-14T18:47:12.383212",
+      "error": null
+    }
+  ]
+}

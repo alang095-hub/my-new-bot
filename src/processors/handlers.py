@@ -1,7 +1,7 @@
 """消息处理器实现"""
 from typing import Dict, Any
 from .base import BaseProcessor, ProcessorResult, ProcessorStatus, ProcessorContext
-from src.database.models import MessageType
+from src.core.database.models import MessageType
 import logging
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class FilterHandler(BaseProcessor):
         try:
             from src.collector.filter_engine import FilterEngine
             from src.ai.conversation_manager import ConversationManager
-            from src.database.models import Platform
+            from src.core.database.models import Platform
 
             # 保存对话记录到数据库
             conversation_manager = ConversationManager(context.db)
@@ -352,7 +352,7 @@ class NotificationHandler(BaseProcessor):
                 )
 
             from src.telegram.notification_sender import NotificationSender
-            from src.database.models import Conversation
+            from src.core.database.models import Conversation
 
             notification_sender = NotificationSender()
 

@@ -1,9 +1,9 @@
 """消息处理管道 - 按顺序执行处理器"""
 from typing import List, Dict, Any, Optional
 from .base import BaseProcessor, ProcessorResult, ProcessorContext, ProcessorStatus
-from src.database.database import SessionLocal
+from src.core.database.connection import SessionLocal
 from src.platforms.registry import registry
-from src.config import settings
+from src.core.config import settings
 import logging
 
 logger = logging.getLogger(__name__)

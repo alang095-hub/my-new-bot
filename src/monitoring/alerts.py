@@ -168,7 +168,7 @@ def send_telegram_alert(alert: Alert) -> None:
     """通过Telegram发送告警"""
     try:
         from src.telegram.notification_sender import NotificationSender
-        from src.config import settings
+        from src.core.config import settings
         
         if not hasattr(settings, 'telegram_bot_token'):
             return

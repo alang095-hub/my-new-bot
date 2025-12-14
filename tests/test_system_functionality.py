@@ -76,7 +76,7 @@ async def test_config_loading():
 async def test_database_connection():
     """测试数据库连接"""
     try:
-        from src.database.database import engine, SessionLocal, Base
+        from src.core.database.connection import engine, SessionLocal, Base
         from sqlalchemy import text
         
         # 测试数据库连接
@@ -101,7 +101,7 @@ async def test_database_connection():
 async def test_database_models():
     """测试数据库模型"""
     try:
-        from src.database.models import Conversation, Customer, CollectedData, Review
+        from src.core.database.models import Conversation, Customer, CollectedData, Review
         from sqlalchemy import inspect
         
         # 检查模型是否正确定义
@@ -113,7 +113,7 @@ async def test_database_models():
         
         # 测试统计模型
         try:
-            from src.database.statistics_models import DailyStatistics, CustomerInteraction, FrequentQuestion
+            from src.core.database.statistics_models import DailyStatistics, CustomerInteraction, FrequentQuestion
             stats_models = [DailyStatistics, CustomerInteraction, FrequentQuestion]
             for model in stats_models:
                 assert hasattr(model, '__table__'), f"{model.__name__} 模型缺少表定义"
@@ -166,7 +166,7 @@ async def test_message_parser():
 async def test_ai_modules():
     """测试AI模块"""
     try:
-        from src.database.database import SessionLocal
+        from src.core.database.connection import SessionLocal
         from src.ai.conversation_manager import ConversationManager
         from src.ai.reply_generator import ReplyGenerator
         from src.ai.prompt_templates import PromptTemplates
@@ -201,7 +201,7 @@ async def test_ai_modules():
 async def test_data_collector():
     """测试数据收集模块"""
     try:
-        from src.database.database import SessionLocal
+        from src.core.database.connection import SessionLocal
         from src.collector.data_collector import DataCollector
         from src.collector.data_validator import DataValidator
         from src.collector.filter_engine import FilterEngine
@@ -242,7 +242,7 @@ async def test_data_collector():
 async def test_telegram_bot():
     """测试Telegram Bot模块"""
     try:
-        from src.database.database import SessionLocal
+        from src.core.database.connection import SessionLocal
         from src.telegram.bot_handler import router as telegram_router
         from src.telegram.command_processor import CommandProcessor
         from src.telegram.notification_sender import NotificationSender
@@ -277,7 +277,7 @@ async def test_telegram_bot():
 async def test_integrations():
     """测试第三方集成模块"""
     try:
-        from src.database.database import SessionLocal
+        from src.core.database.connection import SessionLocal
         from src.integrations.integration_manager import IntegrationManager
         
         # 测试集成管理器（可能需要db参数）
@@ -393,7 +393,7 @@ async def test_platform_manager():
 async def test_statistics():
     """测试统计模块"""
     try:
-        from src.database.database import SessionLocal
+        from src.core.database.connection import SessionLocal
         from src.statistics.tracker import StatisticsTracker
         from src.statistics.api import router as statistics_router
         

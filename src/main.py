@@ -1,14 +1,15 @@
 """FastAPI 主应用入口"""
-from src.admin.api import router as admin_router
-from src.monitoring.api import router as monitoring_router
-from src.statistics.api import router as statistics_router
+from src.api.v1.admin.api import router as admin_router
+from src.api.v1.monitoring.api import router as monitoring_router
+from src.api.v1.statistics.api import router as statistics_router
 from fastapi import FastAPI, Depends, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from src.database.database import get_db, engine, Base
-from src.facebook.webhook_handler import router as facebook_router
+from src.core.database.connection import get_db, engine, Base
+from src.api.v1.webhooks.facebook import router as facebook_router
 from src.telegram.bot_handler import router as telegram_router
-from src.config import settings
+from src.core.config import settings
+from src.core.logging.config import LocalTimeFormatter
 import logging
 import os
 from pathlib import Path
@@ -17,7 +18,7 @@ from logging.handlers import RotatingFileHandler
 
 # 尝试导入Instagram模块（可选）
 try:
-    from src.instagram.webhook_handler import router as instagram_router
+    from src.api.v1.webhooks.instagram import router as instagram_router
     INSTAGRAM_AVAILABLE = True
 except (ImportError, ModuleNotFoundError):
     INSTAGRAM_AVAILABLE = False
@@ -27,24 +28,6 @@ except (ImportError, ModuleNotFoundError):
 
 # 配置日志（使用本地时区）
 from datetime import datetime, timezone, timedelta
-
-
-class LocalTimeFormatter(logging.Formatter):
-    """使用本地时区（UTC+8）的日志格式化器"""
-
-    def __init__(self, fmt=None, datefmt=None):
-        super().__init__(fmt, datefmt)
-        # 设置本地时区（UTC+8，中国时区）
-        self.local_tz = timezone(timedelta(hours=8))
-
-    def formatTime(self, record, datefmt=None):
-        """格式化时间为本地时区"""
-        ct = datetime.fromtimestamp(record.created, tz=self.local_tz)
-        if datefmt:
-            s = ct.strftime(datefmt)
-        else:
-            s = ct.strftime('%Y-%m-%d %H:%M:%S')
-        return s
 
 
 # 配置日志
@@ -126,10 +109,10 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# 添加安全中间件
-# 临时注释掉以诊断问题
-# from src.middleware.security import SecurityMiddleware
-# app.add_middleware(SecurityMiddleware)
+    # 添加安全中间件
+    # 临时注释掉以诊断问题
+    # from src.api.middleware.security import SecurityMiddleware
+    # app.add_middleware(SecurityMiddleware)
 
 # 注册路由
 app.include_router(facebook_router)  # Facebook Webhook (兼容路由: /webhook)
@@ -144,8 +127,20 @@ app.include_router(statistics_router)
 # 注册实时监控API路由
 app.include_router(monitoring_router)
 
+# 注册API使用量监控路由
+from src.api.v1.monitoring.api_usage import router as api_usage_router
+app.include_router(api_usage_router)
+
 # 注册管理后台API路由
 app.include_router(admin_router)
+
+# 注册模板管理API路由
+from src.api.v1.admin.templates import router as templates_router
+app.include_router(templates_router)
+
+# 注册A/B测试API路由
+from src.api.v1.admin.ab_testing import router as ab_testing_router
+app.include_router(ab_testing_router)
 
 # 临时注释掉全局异常处理器，以便查看 FastAPI 的默认错误信息
 # from fastapi.responses import JSONResponse
@@ -247,8 +242,8 @@ async def startup_event():
     # 确保所有模型都被导入
     try:
         # 导入所有模型以确保它们被注册到 Base.metadata
-        from src.database import models  # 导入主模型
-        from src.database import statistics_models  # 导入统计模型
+        from src.core.database import models  # 导入主模型
+        from src.core.database import statistics_models  # 导入统计模型
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created/verified")
     except Exception as e:

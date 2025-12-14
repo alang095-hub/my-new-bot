@@ -1,6 +1,6 @@
 """页面设置管理 - 管理每个页面的自动回复配置"""
 from typing import Dict, Any, List, Optional
-from src.config.loader import load_yaml_config
+from src.core.config.loader import load_yaml_config
 import os
 
 
