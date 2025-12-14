@@ -320,13 +320,13 @@ class AutoReplyScheduler:
                 name=from_info.get("name")
             )
 
-                    # Generate AI reply
-                    ai_reply = await reply_generator.generate_reply(
-                        customer_id=customer.id,
-                        message_content=message_content,
-                        customer_name=customer.name,
-                        conversation_id=conversation.id
-                    )
+            # Generate AI reply
+            ai_reply = await reply_generator.generate_reply(
+                customer_id=customer.id,
+                message_content=message_content,
+                customer_name=customer.name,
+                conversation_id=conversation.id
+            )
 
             if not ai_reply:
                 logger.debug(
