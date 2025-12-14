@@ -122,7 +122,7 @@ class ReplyGenerator:
         logger.info(f"Message does not match any intent keywords, allowing reply: {message_content[:50]}")
         return False  # Allow reply
     
-    def _check_preset_reply(self, customer_id: int, message_content: str) -> Optional[str]:
+    async def _check_preset_reply(self, customer_id: int, message_content: str) -> Optional[str]:
         """
         检查是否应该使用预设回复（用于前三个标准问题）
         
