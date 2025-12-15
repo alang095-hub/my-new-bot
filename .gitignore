@@ -71,3 +71,10 @@ Thumbs.db
 # Project specific
 config/config.yaml
 !config/config.yaml.example
+# 临时文件 
+tall requests 
+tatus 
+zeabur_check_report.json 
+ 
+# 测试报告 
+data/test_reports/ 
