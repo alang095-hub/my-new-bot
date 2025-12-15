@@ -162,6 +162,79 @@ async def show_status():
     print("=" * 70)
 
 
+async def enable_all_pages():
+    """启用所有页面的自动回复"""
+    print("=" * 70)
+    print("启用所有页面的自动回复")
+    print("=" * 70)
+    print()
+    
+    pages = page_token_manager.list_pages()
+    
+    if not pages:
+        print("⚠️  未找到任何页面")
+        print()
+        print("💡 请先运行同步命令:")
+        print("   python scripts/tools/manage_pages.py sync")
+        print()
+        print("=" * 70)
+        return
+    
+    enabled_count = 0
+    for page_id, info in pages.items():
+        page_name = info.get("name", "未知")
+        if not page_settings.is_auto_reply_enabled(page_id):
+            page_settings.add_page(page_id, auto_reply_enabled=True, name=page_name)
+            enabled_count += 1
+            print(f"✅ 已启用: {page_name} (ID: {page_id})")
+        else:
+            print(f"ℹ️  已启用: {page_name} (ID: {page_id})")
+    
+    print()
+    if enabled_count > 0:
+        print(f"✅ 成功启用 {enabled_count} 个页面的自动回复")
+    else:
+        print("ℹ️  所有页面已经启用自动回复")
+    
+    print()
+    print("=" * 70)
+
+
+async def disable_all_pages():
+    """禁用所有页面的自动回复"""
+    print("=" * 70)
+    print("禁用所有页面的自动回复")
+    print("=" * 70)
+    print()
+    
+    pages = page_token_manager.list_pages()
+    
+    if not pages:
+        print("⚠️  未找到任何页面")
+        print()
+        print("=" * 70)
+        return
+    
+    disabled_count = 0
+    for page_id, info in pages.items():
+        page_name = info.get("name", "未知")
+        if page_settings.is_auto_reply_enabled(page_id):
+            page_settings.add_page(page_id, auto_reply_enabled=False, name=page_name)
+            disabled_count += 1
+            print(f"✅ 已禁用: {page_name} (ID: {page_id})")
+        else:
+            print(f"ℹ️  已禁用: {page_name} (ID: {page_id})")
+    
+    print()
+    if disabled_count > 0:
+        print(f"✅ 成功禁用 {disabled_count} 个页面的自动回复")
+    else:
+        print("ℹ️  所有页面已经禁用自动回复")
+    
+    print()
+    print("=" * 70)
+
+
 async def main():
     """主函数"""
     if len(sys.argv) < 2:
@@ -180,6 +253,12 @@ async def main():
         print("  禁用页面自动回复:")
         print("    python manage_pages.py disable <page_id>")
         print()
+        print("  启用所有页面:")
+        print("    python manage_pages.py enable-all")
+        print()
+        print("  禁用所有页面:")
+        print("    python manage_pages.py disable-all")
+        print()
         print("  查看所有页面状态:")
         print("    python manage_pages.py status")
         print()
@@ -195,6 +274,10 @@ async def main():
         await sync_all_pages()
     elif command == "status":
         await show_status()
+    elif command == "enable-all":
+        await enable_all_pages()
+    elif command == "disable-all":
+        await disable_all_pages()
     elif command == "add":
         if len(sys.argv) < 4:
             print("❌ 用法: python manage_pages.py add <page_id> <token> [page_name]")
