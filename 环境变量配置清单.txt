@@ -1,0 +1,82 @@
+========================================
+Zeabur环境变量配置清单（小白版）
+========================================
+
+【第一部分】添加PostgreSQL数据库
+□ 点击"Add Service"
+□ 选择"PostgreSQL"
+□ 等待创建完成（1-2分钟）
+□ 点击PostgreSQL服务
+□ 找到"Connection String"或"DATABASE_URL"
+□ 复制完整的DATABASE_URL
+□ 保存备用
+
+【第二部分】配置应用环境变量
+□ 点击应用服务（不是数据库）
+□ 进入"Environment Variables"
+□ 点击"Add Variable"
+
+【必需变量1】数据库
+□ 变量名：DATABASE_URL
+□ 变量值：粘贴刚才复制的数据库URL
+□ 点击保存
+
+【必需变量2】Facebook配置
+□ 变量名：FACEBOOK_APP_ID
+□ 变量值：您的Facebook应用ID
+□ 点击保存
+
+□ 变量名：FACEBOOK_APP_SECRET
+□ 变量值：您的Facebook应用密钥
+□ 点击保存
+
+□ 变量名：FACEBOOK_ACCESS_TOKEN
+□ 变量值：您的Facebook访问令牌
+□ 点击保存
+
+□ 变量名：FACEBOOK_VERIFY_TOKEN
+□ 变量值：任意字符串（比如：my_token_123）
+□ 重要：记住这个值，配置Webhook要用
+□ 点击保存
+
+【必需变量3】OpenAI配置
+□ 变量名：OPENAI_API_KEY
+□ 变量值：您的OpenAI API密钥
+□ 点击保存
+
+【必需变量4】Telegram配置
+□ 变量名：TELEGRAM_BOT_TOKEN
+□ 变量值：您的Telegram Bot令牌
+□ 点击保存
+
+□ 变量名：TELEGRAM_CHAT_ID
+□ 变量值：您的Telegram聊天ID
+□ 点击保存
+
+【必需变量5】安全配置
+□ 变量名：SECRET_KEY
+□ 变量值：32位以上随机字符串
+□ 点击保存
+
+□ 变量名：DEBUG
+□ 变量值：false
+□ 点击保存
+
+【检查】确认所有变量
+□ DATABASE_URL ✓
+□ FACEBOOK_APP_ID ✓
+□ FACEBOOK_APP_SECRET ✓
+□ FACEBOOK_ACCESS_TOKEN ✓
+□ FACEBOOK_VERIFY_TOKEN ✓
+□ OPENAI_API_KEY ✓
+□ TELEGRAM_BOT_TOKEN ✓
+□ TELEGRAM_CHAT_ID ✓
+□ SECRET_KEY ✓
+□ DEBUG = false ✓
+
+========================================
+完成！可以开始部署了！
+========================================
+
+详细步骤：查看 Zeabur环境变量配置详细步骤.md
+
