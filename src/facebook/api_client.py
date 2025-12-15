@@ -1,8 +1,18 @@
 """Facebook Graph API 客户端"""
 import httpx
 import asyncio
+import time
 from typing import Dict, Any, Optional, List
 from src.core.config import settings
+from src.core.config.constants import (
+    FACEBOOK_GRAPH_API_BASE_URL,
+    MAX_RETRY_ATTEMPTS,
+    RETRY_DELAY_SECONDS,
+    RETRY_BACKOFF_MULTIPLIER,
+    FACEBOOK_API_RATE_LIMIT,
+    FACEBOOK_API_WINDOW_SECONDS
+)
+from src.utils.rate_limiter import rate_limiter
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,8 +34,15 @@ class FacebookAPIClient:
             # 尝试从Token管理器获取，如果没有则使用默认Token
             from src.config.page_token_manager import page_token_manager
             self.access_token = page_token_manager.get_token() or settings.facebook_access_token
-        self.base_url = "https://graph.facebook.com/v18.0"
+        self.base_url = FACEBOOK_GRAPH_API_BASE_URL
         self.client = httpx.AsyncClient(timeout=30.0)
+        
+        # 配置速率限制
+        rate_limiter.set_limit(
+            "facebook_api",
+            max_requests=FACEBOOK_API_RATE_LIMIT,
+            time_window_seconds=FACEBOOK_API_WINDOW_SECONDS
+        )
 
     async def send_message(
         self,
@@ -118,8 +135,54 @@ class FacebookAPIClient:
             "messaging_type": message_type
         }
 
+        # 速率限制检查
+        if not rate_limiter.is_allowed("facebook_api", FACEBOOK_API_RATE_LIMIT, FACEBOOK_API_WINDOW_SECONDS):
+            remaining = rate_limiter.get_remaining("facebook_api", FACEBOOK_API_RATE_LIMIT, FACEBOOK_API_WINDOW_SECONDS)
+            logger.warning(f"Facebook API速率限制：已达到限制，剩余请求数: {remaining}")
+            await asyncio.sleep(1)
+        
+        # 重试机制
+        last_exception = None
+        for attempt in range(MAX_RETRY_ATTEMPTS):
+            try:
+                response = await self.client.post(url, params=params, json=data)
+                
+                # 如果成功或非临时错误，跳出重试循环
+                if response.status_code == 200:
+                    break
+                
+                # 检查是否是速率限制错误（429）
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get("Retry-After", RETRY_DELAY_SECONDS * (RETRY_BACKOFF_MULTIPLIER ** attempt)))
+                    logger.warning(f"Facebook API速率限制，等待 {retry_after} 秒后重试 (尝试 {attempt + 1}/{MAX_RETRY_ATTEMPTS})")
+                    await asyncio.sleep(retry_after)
+                    continue
+                
+                # 5xx错误可以重试
+                if 500 <= response.status_code < 600:
+                    if attempt < MAX_RETRY_ATTEMPTS - 1:
+                        delay = RETRY_DELAY_SECONDS * (RETRY_BACKOFF_MULTIPLIER ** attempt)
+                        logger.warning(f"Facebook API服务器错误 {response.status_code}，{delay}秒后重试 (尝试 {attempt + 1}/{MAX_RETRY_ATTEMPTS})")
+                        await asyncio.sleep(delay)
+                        continue
+                
+                # 其他错误不重试
+                break
+                
+            except (httpx.TimeoutException, httpx.NetworkError) as e:
+                last_exception = e
+                if attempt < MAX_RETRY_ATTEMPTS - 1:
+                    delay = RETRY_DELAY_SECONDS * (RETRY_BACKOFF_MULTIPLIER ** attempt)
+                    logger.warning(f"Facebook API网络错误，{delay}秒后重试 (尝试 {attempt + 1}/{MAX_RETRY_ATTEMPTS}): {str(e)}")
+                    await asyncio.sleep(delay)
+                else:
+                    raise
+        
+        # 如果所有重试都失败，抛出最后一个异常
+        if last_exception:
+            raise last_exception
+        
         try:
-            response = await self.client.post(url, params=params, json=data)
 
             # 记录详细的错误信息
             if response.status_code != 200:

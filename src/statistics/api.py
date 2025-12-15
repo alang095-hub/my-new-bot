@@ -218,18 +218,17 @@ async def get_ai_replies(
         from src.core.database.models import Conversation, Customer
         from sqlalchemy import and_
         
-        # 构建查询
-        query = db.query(Conversation)\
-            .join(Customer, Conversation.customer_id == Customer.id)\
-            .filter(Conversation.ai_replied == True)\
-            .filter(Conversation.ai_reply_content.isnot(None))
+        from src.core.database.repositories.conversation_repo import ConversationRepository
+        conversation_repo = ConversationRepository(db)
         
         # 日期过滤（使用UTC时区）
+        start_dt = None
+        end_dt = None
+        
         if start_date:
             try:
                 start = datetime.strptime(start_date, "%Y-%m-%d").date()
                 start_dt = datetime.combine(start, datetime.min.time(), timezone.utc)
-                query = query.filter(Conversation.ai_reply_at >= start_dt)
             except ValueError:
                 return {"error": "开始日期格式错误，请使用 YYYY-MM-DD 格式"}
         
@@ -237,19 +236,16 @@ async def get_ai_replies(
             try:
                 end = datetime.strptime(end_date, "%Y-%m-%d").date()
                 end_dt = datetime.combine(end, datetime.max.time(), timezone.utc)
-                query = query.filter(Conversation.ai_reply_at <= end_dt)
             except ValueError:
                 return {"error": "结束日期格式错误，请使用 YYYY-MM-DD 格式"}
         
-        # 获取总数
-        total = query.count()
-        
-        # 分页查询
-        conversations = query\
-            .order_by(Conversation.ai_reply_at.desc())\
-            .offset(offset)\
-            .limit(limit)\
-            .all()
+        # 使用Repository获取数据
+        conversations, total = conversation_repo.get_ai_replied_with_customer(
+            start_date=start_dt,
+            end_date=end_dt,
+            skip=(page - 1) * page_size,
+            limit=page_size
+        )
         
         # 格式化结果
         results = []

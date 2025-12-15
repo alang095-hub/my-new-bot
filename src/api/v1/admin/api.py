@@ -33,21 +33,16 @@ async def list_conversations(
     Returns:
         对话列表和分页信息
     """
-    query = db.query(Conversation)
+    from src.core.database.repositories.conversation_repo import ConversationRepository
+    conversation_repo = ConversationRepository(db)
     
-    if status:
-        query = query.filter(Conversation.status == status)
-    
-    if platform:
-        query = query.filter(Conversation.platform == platform)
-    
-    # 总数
-    total = query.count()
-    
-    # 分页查询
-    conversations = query.order_by(desc(Conversation.received_at)).offset(
-        (page - 1) * page_size
-    ).limit(page_size).all()
+    conversations, total = conversation_repo.get_by_filters(
+        status=status,
+        platform=platform,
+        skip=(page - 1) * page_size,
+        limit=page_size,
+        order_by_desc=True
+    )
     
     return {
         "data": [
@@ -78,7 +73,9 @@ async def get_conversation_detail(
     db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """获取对话详情"""
-    conversation = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    from src.core.database.repositories.conversation_repo import ConversationRepository
+    conversation_repo = ConversationRepository(db)
+    conversation = conversation_repo.get_by_id(conversation_id)
     
     if not conversation:
         return {"error": "Conversation not found"}
@@ -135,32 +132,20 @@ async def get_statistics(
     end_date = datetime.utcnow()
     start_date = end_date - timedelta(days=days)
     
+    from src.core.database.repositories.conversation_repo import ConversationRepository
+    conversation_repo = ConversationRepository(db)
+    
     # 对话统计
-    total_conversations = db.query(Conversation).filter(
-        Conversation.received_at >= start_date
-    ).count()
+    total_conversations = conversation_repo.count_by_time_range(start_date)
     
     # 按状态统计
-    status_stats = db.query(
-        Conversation.status,
-        func.count(Conversation.id)
-    ).filter(
-        Conversation.received_at >= start_date
-    ).group_by(Conversation.status).all()
+    status_stats = conversation_repo.get_status_stats_by_time_range(start_date)
     
     # 按平台统计
-    platform_stats = db.query(
-        Conversation.platform,
-        func.count(Conversation.id)
-    ).filter(
-        Conversation.received_at >= start_date
-    ).group_by(Conversation.platform).all()
+    platform_stats = conversation_repo.get_platform_stats_by_time_range(start_date)
     
     # AI回复率
-    ai_replied_count = db.query(Conversation).filter(
-        Conversation.received_at >= start_date,
-        Conversation.ai_replied == True
-    ).count()
+    ai_replied_count = conversation_repo.count_ai_replied_by_time_range(start_date)
     
     ai_reply_rate = (ai_replied_count / total_conversations * 100) if total_conversations > 0 else 0
     

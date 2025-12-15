@@ -145,8 +145,10 @@ class PageTokenManager:
         Returns:
             同步的页面数量
         """
+        from src.core.config.constants import FACEBOOK_ME_ACCOUNTS_URL
+        
         try:
-            url = "https://graph.facebook.com/v18.0/me/accounts"
+            url = FACEBOOK_ME_ACCOUNTS_URL
             params = {"access_token": user_token}
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url, params=params)

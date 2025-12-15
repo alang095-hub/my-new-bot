@@ -29,7 +29,8 @@ class PermissionChecker(BaseTool):
             name="permission_checker",
             description="Facebook权限检查工具"
         )
-        self.base_url = "https://graph.facebook.com/v18.0"
+        from src.core.config.constants import FACEBOOK_GRAPH_API_BASE_URL
+        self.base_url = FACEBOOK_GRAPH_API_BASE_URL
     
     async def check_permissions(self, access_token: str) -> ToolResult:
         """检查访问令牌的权限"""

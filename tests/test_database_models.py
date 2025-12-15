@@ -57,6 +57,7 @@ def test_conversation_model(db_session):
     conversation = Conversation(
         customer_id=customer.id,
         platform=Platform.FACEBOOK,
+        platform_message_id="test_msg_123",
         message_type=MessageType.MESSAGE,
         content="测试消息"
     )
@@ -84,6 +85,7 @@ def test_collected_data_model(db_session):
     conversation = Conversation(
         customer_id=customer.id,
         platform=Platform.FACEBOOK,
+        platform_message_id="test_msg_123",
         message_type=MessageType.MESSAGE,
         content="测试消息"
     )
@@ -117,6 +119,7 @@ def test_review_model(db_session):
     conversation = Conversation(
         customer_id=customer.id,
         platform=Platform.FACEBOOK,
+        platform_message_id="test_msg_123",
         message_type=MessageType.MESSAGE,
         content="测试消息"
     )
@@ -154,6 +157,7 @@ def test_model_relationships(db_session):
     conversation = Conversation(
         customer_id=customer.id,
         platform=Platform.FACEBOOK,
+        platform_message_id="test_msg_123",
         message_type=MessageType.MESSAGE,
         content="测试消息"
     )

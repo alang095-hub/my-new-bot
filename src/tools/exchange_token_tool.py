@@ -14,7 +14,8 @@ class ExchangeTokenTool(BaseTool):
             description="Facebook短期令牌交换长期令牌工具"
         )
         self.token_manager = TokenManager()
-        self.base_url = "https://graph.facebook.com/v18.0"
+        from src.core.config.constants import FACEBOOK_GRAPH_API_BASE_URL
+        self.base_url = FACEBOOK_GRAPH_API_BASE_URL
     
     def get_config_value(self, key: str, placeholder: str = "") -> Optional[str]:
         """获取配置值"""

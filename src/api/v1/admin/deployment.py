@@ -193,9 +193,11 @@ async def verify_token():
                 detail="FACEBOOK_APP_ID 或 FACEBOOK_APP_SECRET 未配置"
             )
         
+        from src.core.config.constants import FACEBOOK_DEBUG_TOKEN_URL, FACEBOOK_ME_ACCOUNTS_URL
+        
         async with httpx.AsyncClient(timeout=10.0) as client:
             # 检查Token信息
-            debug_url = "https://graph.facebook.com/v18.0/debug_token"
+            debug_url = FACEBOOK_DEBUG_TOKEN_URL
             debug_params = {
                 "input_token": token,
                 "access_token": f"{app_id}|{app_secret}"
@@ -213,7 +215,7 @@ async def verify_token():
             token_type = debug_data.get("type", "未知")
             
             # 尝试获取页面列表
-            pages_url = "https://graph.facebook.com/v18.0/me/accounts"
+            pages_url = FACEBOOK_ME_ACCOUNTS_URL
             pages_params = {"access_token": token}
             pages_response = await client.get(pages_url, params=pages_params)
             

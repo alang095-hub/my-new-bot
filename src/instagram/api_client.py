@@ -2,6 +2,7 @@
 import httpx
 from typing import Dict, Any, Optional
 from src.core.config import settings
+from src.core.config.constants import INSTAGRAM_GRAPH_API_BASE_URL
 
 
 class InstagramAPIClient:
@@ -9,7 +10,7 @@ class InstagramAPIClient:
     
     def __init__(self):
         self.access_token = getattr(settings, 'instagram_access_token', None) or settings.facebook_access_token
-        self.base_url = "https://graph.instagram.com/v18.0"
+        self.base_url = INSTAGRAM_GRAPH_API_BASE_URL
         self.client = httpx.AsyncClient(timeout=30.0)
     
     async def send_message(

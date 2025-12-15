@@ -177,13 +177,9 @@ class ReplyGenerator:
             True if customer has received Telegram link, False otherwise
         """
         # Check all conversations for this customer
-        conversations = self.db.query(Conversation)\
-            .filter(
-                Conversation.customer_id == customer_id,
-                Conversation.ai_replied == True,
-                Conversation.ai_reply_content.isnot(None)
-            )\
-            .all()
+        from src.core.database.repositories.conversation_repo import ConversationRepository
+        conversation_repo = ConversationRepository(self.db)
+        conversations = conversation_repo.get_customer_ai_replied_conversations(customer_id)
         
         # Check if any reply contains Telegram group link
         from src.core.config import yaml_config

@@ -84,6 +84,32 @@ class Settings(BaseSettings):
             raise ValueError("请配置有效的OpenAI API密钥")
         return v
     
+    @field_validator('debug', mode='after')
+    @classmethod
+    def validate_production_config(cls, v: bool, info) -> bool:
+        """验证生产环境配置"""
+        # 检查是否在生产环境但启用了DEBUG模式
+        import os
+        is_production = os.getenv('ENVIRONMENT', '').lower() == 'production' or os.getenv('RAILWAY_ENVIRONMENT', '') or os.getenv('ZEABUR_ENVIRONMENT', '')
+        
+        if is_production and v:
+            import warnings
+            warnings.warn(
+                "⚠️  警告：生产环境不应启用DEBUG模式！"
+                "请设置环境变量 DEBUG=false",
+                UserWarning
+            )
+        
+        return v
+    
+    @field_validator('secret_key')
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """验证SECRET_KEY强度"""
+        if len(v) < 32:
+            raise ValueError("SECRET_KEY长度至少32字符，请使用更强的密钥")
+        return v
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

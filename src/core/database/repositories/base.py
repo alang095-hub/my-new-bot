@@ -1,9 +1,13 @@
 """Repository基类"""
+import time
+import logging
 from typing import Generic, TypeVar, Type, Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from src.core.database.connection import Base
 from src.core.exceptions import DatabaseError
+
+logger = logging.getLogger(__name__)
 
 ModelType = TypeVar("ModelType", bound=Base)
 
@@ -22,6 +26,21 @@ class BaseRepository(Generic[ModelType]):
         self.db = db
         self.model = model
     
+    def _log_query_performance(self, operation: str, duration: float, threshold: float = 1.0):
+        """
+        记录查询性能（如果超过阈值）
+        
+        Args:
+            operation: 操作名称
+            duration: 执行时间（秒）
+            threshold: 性能阈值（秒）
+        """
+        if duration > threshold:
+            logger.warning(
+                f"Slow query detected: {self.model.__name__}.{operation} "
+                f"took {duration:.3f}s (threshold: {threshold}s)"
+            )
+    
     def get(self, id: int) -> Optional[ModelType]:
         """
         根据ID获取记录
@@ -32,8 +51,12 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             模型实例或None
         """
+        start_time = time.time()
         try:
-            return self.db.query(self.model).filter(self.model.id == id).first()
+            result = self.db.query(self.model).filter(self.model.id == id).first()
+            duration = time.time() - start_time
+            self._log_query_performance("get", duration)
+            return result
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get {self.model.__name__}: {str(e)}", operation="get")
     
@@ -64,11 +87,15 @@ class BaseRepository(Generic[ModelType]):
         Returns:
             模型实例列表
         """
+        start_time = time.time()
         try:
             query = self.db.query(self.model)
             if kwargs:
                 query = query.filter_by(**kwargs)
-            return query.offset(skip).limit(limit).all()
+            result = query.offset(skip).limit(limit).all()
+            duration = time.time() - start_time
+            self._log_query_performance("get_all", duration)
+            return result
         except SQLAlchemyError as e:
             raise DatabaseError(f"Failed to get all {self.model.__name__}: {str(e)}", operation="get_all")
     

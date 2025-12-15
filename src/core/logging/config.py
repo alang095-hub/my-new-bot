@@ -8,6 +8,62 @@ from logging.handlers import RotatingFileHandler
 from datetime import timezone, timedelta
 
 
+class SensitiveDataFilter(logging.Filter):
+    """过滤敏感信息的日志过滤器"""
+    
+    # 敏感信息关键词（用于识别需要过滤的字段）
+    SENSITIVE_KEYWORDS = [
+        'token', 'password', 'secret', 'key', 'api_key',
+        'access_token', 'refresh_token', 'auth', 'credential'
+    ]
+    
+    # 需要完全隐藏的值（如果包含这些关键词）
+    SENSITIVE_PATTERNS = [
+        r'[A-Za-z0-9]{32,}',  # 长token（32字符以上）
+        r'sk-[A-Za-z0-9]+',    # OpenAI API key
+        r'EAAG[A-Za-z0-9]+',   # Facebook token格式
+    ]
+    
+    def filter(self, record: logging.LogRecord) -> bool:
+        """过滤敏感信息"""
+        import re
+        
+        # 过滤消息内容
+        if hasattr(record, 'msg') and record.msg:
+            record.msg = self._sanitize(str(record.msg))
+        
+        # 过滤参数
+        if hasattr(record, 'args') and record.args:
+            record.args = tuple(self._sanitize(str(arg)) if isinstance(arg, str) else arg 
+                              for arg in record.args)
+        
+        return True
+    
+    def _sanitize(self, text: str) -> str:
+        """清理敏感信息"""
+        import re
+        
+        # 检查是否包含敏感关键词
+        text_lower = text.lower()
+        has_sensitive = any(keyword in text_lower for keyword in self.SENSITIVE_KEYWORDS)
+        
+        if not has_sensitive:
+            return text
+        
+        # 替换长token
+        for pattern in self.SENSITIVE_PATTERNS:
+            text = re.sub(pattern, '[REDACTED]', text)
+        
+        # 替换常见的token格式
+        # Facebook token: EAAG... -> EAAG[REDACTED]
+        text = re.sub(r'(EAAG[A-Za-z0-9]{10})[A-Za-z0-9]+', r'\1[REDACTED]', text)
+        
+        # OpenAI key: sk-... -> sk-[REDACTED]
+        text = re.sub(r'(sk-[A-Za-z0-9]{10})[A-Za-z0-9]+', r'\1[REDACTED]', text)
+        
+        return text
+
+
 class LocalTimeFormatter(logging.Formatter):
     """使用本地时区（UTC+8）的日志格式化器"""
 
@@ -87,10 +143,14 @@ def setup_logging(
     # 清除现有处理器
     root_logger.handlers.clear()
     
+    # 创建敏感信息过滤器
+    sensitive_filter = SensitiveDataFilter()
+    
     # 控制台处理器
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
+    console_handler.addFilter(sensitive_filter)
     root_logger.addHandler(console_handler)
     
     # 文件处理器
@@ -104,6 +164,7 @@ def setup_logging(
         )
         file_handler.setLevel(level)
         file_handler.setFormatter(formatter)
+        file_handler.addFilter(sensitive_filter)
         root_logger.addHandler(file_handler)
 
 
