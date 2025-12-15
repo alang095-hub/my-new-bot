@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-12-15T11:57:58.543944",
+  "base_url": "https://my-telegram-bot33.zeabur.app",
+  "checks": {
+    "health_simple": {
+      "name": "简单健康检查",
+      "url": "https://my-telegram-bot33.zeabur.app/health/simple",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 1477.49,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "health": {
+      "name": "完整健康检查",
+      "url": "https://my-telegram-bot33.zeabur.app/health",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 662.41,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "root": {
+      "name": "根路径",
+      "url": "https://my-telegram-bot33.zeabur.app/",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 548.42,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "docs": {
+      "name": "API文档",
+      "url": "https://my-telegram-bot33.zeabur.app/docs",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 518.14,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "deployment_status": {
+      "name": "部署状态",
+      "url": "https://my-telegram-bot33.zeabur.app/admin/deployment/status",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 579.48,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "verify_token": {
+      "name": "Token验证",
+      "url": "https://my-telegram-bot33.zeabur.app/admin/deployment/verify-token",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 536.27,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "statistics": {
+      "name": "每日统计",
+      "url": "https://my-telegram-bot33.zeabur.app/statistics/daily",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 521.43,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    },
+    "metrics": {
+      "name": "性能指标",
+      "url": "https://my-telegram-bot33.zeabur.app/metrics",
+      "status": "failed",
+      "status_code": 502,
+      "response_time_ms": 554.84,
+      "error": "期望状态码 200，实际 502",
+      "data": "Bad Gateway"
+    }
+  }
+}

@@ -19,13 +19,13 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# 暴露端口
+# 暴露端口（使用环境变量，默认 8000）
 EXPOSE 8000
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
+    CMD python -c "import urllib.request, os; port = os.getenv('PORT', '8000'); urllib.request.urlopen(f'http://localhost:{port}/health')"
 
-# 启动命令
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动命令（支持 PORT 环境变量）
+CMD sh -c "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 

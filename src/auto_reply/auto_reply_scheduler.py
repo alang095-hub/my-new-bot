@@ -220,18 +220,19 @@ class AutoReplyScheduler:
 
             # Batch process messages (process in batches of 5 to avoid overwhelming the system)
             batch_size = 5
-            total_batches = (len(unreplied_messages) + batch_size - 1) // batch_size
-            
+            total_batches = (len(unreplied_messages) +
+                             batch_size - 1) // batch_size
+
             for batch_idx in range(total_batches):
                 start_idx = batch_idx * batch_size
                 end_idx = min(start_idx + batch_size, len(unreplied_messages))
                 batch_messages = unreplied_messages[start_idx:end_idx]
-                
+
                 logger.info(
                     f"Processing batch {batch_idx + 1}/{total_batches} "
                     f"({len(batch_messages)} messages) for page {page_id}"
                 )
-                
+
                 # Process batch concurrently
                 batch_tasks = [
                     self._process_single_message(
@@ -240,14 +241,13 @@ class AutoReplyScheduler:
                     )
                     for msg_data in batch_messages
                 ]
-                
+
                 # Wait for batch to complete
                 await asyncio.gather(*batch_tasks, return_exceptions=True)
-                
+
                 # Delay between batches to avoid rate limiting
                 if batch_idx < total_batches - 1:
                     await asyncio.sleep(2.0)  # 2 second delay between batches
-            
 
             await page_client.close()
 
@@ -270,7 +270,7 @@ class AutoReplyScheduler:
     ) -> None:
         """
         处理单条未回复消息（批量处理中的单个任务）
-        
+
         Args:
             db: 数据库会话
             msg_data: 消息数据

@@ -1,8 +1,26 @@
 """应用设置 - 从环境变量加载配置"""
+import os
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, ValidationError
 from pathlib import Path
+import sys
+
+
+def get_env_name_for_field(field_name: str) -> str:
+    """根据字段名获取对应的环境变量名"""
+    field_to_env = {
+        'database_url': 'DATABASE_URL',
+        'facebook_app_id': 'FACEBOOK_APP_ID',
+        'facebook_app_secret': 'FACEBOOK_APP_SECRET',
+        'facebook_access_token': 'FACEBOOK_ACCESS_TOKEN',
+        'facebook_verify_token': 'FACEBOOK_VERIFY_TOKEN',
+        'openai_api_key': 'OPENAI_API_KEY',
+        'telegram_bot_token': 'TELEGRAM_BOT_TOKEN',
+        'telegram_chat_id': 'TELEGRAM_CHAT_ID',
+        'secret_key': 'SECRET_KEY',
+    }
+    return field_to_env.get(field_name, field_name.upper())
 
 
 class Settings(BaseSettings):
@@ -82,6 +100,31 @@ class Settings(BaseSettings):
         return self.project_root / "logs"
 
 
-# 全局配置实例
-settings = Settings()
+# 全局配置实例（带友好错误处理）
+def _create_settings():
+    """创建Settings实例，提供友好的错误信息"""
+    try:
+        return Settings()
+    except ValidationError as e:
+        missing_fields = []
+        for error in e.errors():
+            if error['type'] == 'missing':
+                field_name = error['loc'][0]
+                env_name = get_env_name_for_field(field_name)
+                missing_fields.append(f"  - {env_name} (对应字段: {field_name})")
+        
+        if missing_fields:
+            error_msg = "\n" + "="*60 + "\n"
+            error_msg += "❌ 缺少必需的环境变量！\n"
+            error_msg += "="*60 + "\n"
+            error_msg += "\n请在Zeabur项目设置中配置以下环境变量：\n\n"
+            for field in missing_fields:
+                error_msg += field + "\n"
+            error_msg += "\n参考文档: docs/production/ZEABUR_ENV_VARS_TEMPLATE.txt\n"
+            error_msg += "="*60 + "\n"
+            print(error_msg, file=sys.stderr)
+        raise
+
+# 创建全局settings实例
+settings = _create_settings()
 
