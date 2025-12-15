@@ -70,7 +70,7 @@
 **4. 安全配置**
 ```
 变量名: SECRET_KEY
-值: Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg
+值: 请生成32位以上随机字符串
 ```
 
 ```
@@ -120,7 +120,7 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_TEMPERATURE=0.7
 TELEGRAM_BOT_TOKEN=你的Telegram Bot令牌
 TELEGRAM_CHAT_ID=你的Telegram聊天ID
-SECRET_KEY=Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg
+SECRET_KEY=请生成32位以上随机字符串
 DEBUG=false
 CORS_ORIGINS=https://your-app-name.zeabur.app
 ```
@@ -178,7 +178,7 @@ env | grep SECRET_KEY
 - [ ] `OPENAI_TEMPERATURE` 已添加（值：`0.7`）
 - [ ] `TELEGRAM_BOT_TOKEN` 已添加
 - [ ] `TELEGRAM_CHAT_ID` 已添加
-- [ ] `SECRET_KEY` 已添加（值：`Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg`）
+- [ ] `SECRET_KEY` 已添加（请生成32位以上随机字符串）
 - [ ] `DEBUG` 已添加（值：`false`）
 - [ ] 所有变量已保存
 - [ ] 服务已重启

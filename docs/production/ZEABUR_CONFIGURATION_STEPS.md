@@ -38,7 +38,7 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_TEMPERATURE=0.7
 TELEGRAM_BOT_TOKEN=你的Telegram Bot令牌
 TELEGRAM_CHAT_ID=你的Telegram聊天ID
-SECRET_KEY=Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg
+SECRET_KEY=请生成32位以上随机字符串
 DEBUG=false
 CORS_ORIGINS=https://your-app-name.zeabur.app
 ```
@@ -173,7 +173,7 @@ https://your-app-name.zeabur.app/health
 | `OPENAI_TEMPERATURE` | ⚠️ | 默认：0.7 |
 | `TELEGRAM_BOT_TOKEN` | ✅ | Telegram Bot令牌 |
 | `TELEGRAM_CHAT_ID` | ✅ | Telegram聊天ID |
-| `SECRET_KEY` | ✅ | 已生成：`Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg` |
+| `SECRET_KEY` | ✅ | 请生成32位以上随机字符串 |
 | `DEBUG` | ✅ | 必须设置为：`false` |
 | `CORS_ORIGINS` | ⚠️ | 部署后设置（应用URL） |
 | `DATABASE_URL` | ✅ | Zeabur自动设置 |

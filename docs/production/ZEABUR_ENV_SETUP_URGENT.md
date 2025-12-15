@@ -36,7 +36,7 @@ OPENAI_MODEL=gpt-4o-mini
 OPENAI_TEMPERATURE=0.7
 TELEGRAM_BOT_TOKEN=你的Telegram Bot令牌
 TELEGRAM_CHAT_ID=你的Telegram聊天ID
-SECRET_KEY=Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg
+SECRET_KEY=请生成32位以上随机字符串
 DEBUG=false
 ```
 
@@ -67,13 +67,13 @@ DEBUG=false
 | `OPENAI_TEMPERATURE` | 0.7 |
 | `TELEGRAM_BOT_TOKEN` | 你的Telegram Bot令牌 |
 | `TELEGRAM_CHAT_ID` | 你的Telegram聊天ID |
-| `SECRET_KEY` | `Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg` |
+| `SECRET_KEY` | 请生成32位以上随机字符串 |
 | `DEBUG` | false |
 
 ## ⚠️ 重要提示
 
 1. **所有变量都是必需的**：缺少任何一个都会导致启动失败
-2. **SECRET_KEY已生成**：直接使用 `Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg`
+2. **SECRET_KEY需要生成**：请生成32位以上随机字符串
 3. **FACEBOOK_ACCESS_TOKEN**：必须是用户级Token（有`pages_show_list`权限）
 4. **DATABASE_URL**：如果已添加PostgreSQL服务，Zeabur会自动设置，无需手动配置
 

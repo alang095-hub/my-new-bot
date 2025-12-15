@@ -73,7 +73,7 @@
 | `OPENAI_API_KEY` | OpenAI API密钥 | `sk-您的OpenAI密钥` |
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot令牌 | `您的Telegram Bot令牌` |
 | `TELEGRAM_CHAT_ID` | Telegram聊天ID | `您的Telegram聊天ID` |
-| `SECRET_KEY` | 应用密钥（至少32字符） | `Smo8m91c4R60Ir8I6TvXfZEtH-Et0IJIhmRqaiGOROg` |
+| `SECRET_KEY` | 应用密钥（至少32字符） | 请生成32位以上随机字符串 |
 | `DEBUG` | 调试模式 | `false` |
 
 #### 步骤3：保存并等待重启
