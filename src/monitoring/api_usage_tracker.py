@@ -127,7 +127,7 @@ class APIUsageTracker:
                 timestamp=record.timestamp,
                 error_message=record.error_message,
                 tokens_used=record.tokens_used,
-                cost_usd=str(record.cost_usd) if record.cost_usd else None,
+                cost_usd=f"{record.cost_usd:.10f}" if record.cost_usd else None,  # 使用固定格式，避免科学计数法
                 metadata=record.metadata
             )
             

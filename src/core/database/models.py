@@ -187,7 +187,7 @@ class APIUsageLog(Base):
     timestamp = Column(DateTime(timezone=True), nullable=False, index=True, server_default=func.now())
     error_message = Column(Text)  # 错误信息
     tokens_used = Column(Integer)  # Token使用量（OpenAI）
-    cost_usd = Column(String(20))  # 成本（美元，字符串格式避免精度问题）
+    cost_usd = Column(String(50))  # 成本（美元，字符串格式避免精度问题）
     extra_metadata = Column(JSON)  # 其他元数据（避免与SQLAlchemy的metadata冲突）
 
     __table_args__ = (
