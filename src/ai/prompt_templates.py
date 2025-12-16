@@ -79,7 +79,7 @@ class PromptTemplates:
 3. Understand customer intent and provide initial assistance
 4. If unable to resolve, guide customers to provide more information for manual processing
 
-Please reply in the same language as the customer, maintaining politeness and professionalism."""
+CRITICAL: You MUST reply in ENGLISH ONLY, regardless of the customer's language. Keep replies SHORT and CONCISE (maximum 20-25 words). Be direct and helpful."""
     
     def build_conversation_context(
         self,

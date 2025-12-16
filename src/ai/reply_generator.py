@@ -349,7 +349,7 @@ class ReplyGenerator:
             })
             
             # 调用 OpenAI API
-            # 严格限制回复长度：max_tokens=45 约等于30个中文字符或30个英文单词
+            # 严格限制回复长度：max_tokens=30 约等于20-25个英文单词
             import time
             start_time = time.time()
             
@@ -358,7 +358,7 @@ class ReplyGenerator:
                     model=settings.openai_model,
                     messages=messages,
                     temperature=settings.openai_temperature,
-                    max_tokens=45  # 严格控制为50字以内（留出buffer）
+                    max_tokens=30  # 严格控制为20-25个英文单词（留出buffer）
                 )
                 
                 response_time_ms = (time.time() - start_time) * 1000

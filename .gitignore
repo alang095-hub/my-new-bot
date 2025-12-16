@@ -71,6 +71,32 @@ Thumbs.db
 # Project specific
 config/config.yaml
 !config/config.yaml.example
+
+# 敏感信息文件
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+.page_tokens.json
+.page_tokens.json.bak
+**/.page_tokens.json
+
+# 日志文件（可能包含敏感信息）
+logs/
+*.log
+*.log.*
+
+# 检查报告（可能包含敏感信息）
+zeabur_check_report.json
+zeabur_check_report.html
+*_check_report.json
+*_check_report.html
+
+# 临时文件
+*.tmp
+*.temp
 # 临时文件 
 tall requests 
 tatus 

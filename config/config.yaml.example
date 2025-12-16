@@ -1,8 +1,9 @@
 # 自动回复配置
 auto_reply:
   enabled: true
-  default_language: "zh-CN"
+  default_language: "en"  # 系统回复语言：必须使用英语
   response_delay_seconds: 2
+  default_reply: null  # 全局默认回复（可选，如果页面没有配置default_reply则使用此值）
 
 # 资料收集配置
 data_collection:
@@ -79,8 +80,10 @@ integrations:
 #   "1234567890123456":  # Facebook页面ID
 #     auto_reply_enabled: true  # 是否启用自动回复
 #     name: "我的业务页面"  # 可选，页面名称（便于识别）
+#     default_reply: "Hello! Thanks for your message. How can I help you today?"  # 可选，页面系统默认回复（优先于AI回复）
 #   "9876543210987654":  # 另一个页面ID
 #     auto_reply_enabled: false  # 禁用该页面的自动回复
 #     name: "测试页面"
+#     default_reply: "Hi! Welcome to our page. Please let us know how we can assist you."  # 可选，页面系统默认回复
 
 

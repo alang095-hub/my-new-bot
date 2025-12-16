@@ -60,6 +60,29 @@ class PageSettings:
         """
         return self._page_settings.get(page_id, {})
     
+    def get_page_default_reply(self, page_id: Optional[str] = None) -> Optional[str]:
+        """
+        获取页面的默认自动回复
+        
+        Args:
+            page_id: 页面ID
+            
+        Returns:
+            默认回复内容，如果没有配置则返回None
+        """
+        if not page_id:
+            return None
+        
+        page_config = self._page_settings.get(page_id, {})
+        default_reply = page_config.get("default_reply")
+        
+        # 如果页面没有配置，检查全局默认回复
+        if not default_reply:
+            auto_reply_config = self.config.get("auto_reply", {})
+            default_reply = auto_reply_config.get("default_reply")
+        
+        return default_reply
+    
     def get_all_pages(self) -> List[str]:
         """
         获取所有已配置的页面ID列表

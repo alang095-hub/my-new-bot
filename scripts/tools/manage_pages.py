@@ -19,16 +19,18 @@ load_dotenv()
 
 
 async def sync_all_pages(user_token: Optional[str] = None):
-    """从用户Token同步所有页面的Token，并自动启用自动回复"""
+    """从用户Token同步所有页面的Token，并自动启用自动回复（支持分页）"""
     if not user_token:
         user_token = settings.facebook_access_token
     
     print("=" * 70)
-    print("同步所有页面Token和设置")
+    print("同步所有页面Token和设置（支持分页，获取所有页面）")
     print("=" * 70)
     print()
     
     print(f"使用Token: {user_token[:20]}...")
+    print()
+    print("提示：如果页面很多，可能需要一些时间...")
     print()
     
     count = await page_token_manager.sync_from_user_token(user_token)

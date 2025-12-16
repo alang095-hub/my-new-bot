@@ -12,7 +12,7 @@
 4. 找到 `FACEBOOK_ACCESS_TOKEN`
 5. 更新为长期Token：
    ```
-   EAAMDtAYXhMkBQMNGpLwZCxhYjTWYEmz8rMWcIidGfqsSw2rsJt6rZA6qDhKtmpxqRkIwZCAJ1VViE0nYLooDW1KEXhI1YtlVeonUmYkNlHLnxnlSZC7QFByO3tiykskL1kx5R11nZCzAG3yarADaerXMaZCeyYJTXUpsgOMhggypZBFIZAeaVRg51vidZBtiy
+   YOUR_LONG_LIVED_ACCESS_TOKEN_HERE
    ```
 6. 保存并等待服务重启（约1-2分钟）
 

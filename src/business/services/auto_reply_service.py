@@ -57,52 +57,58 @@ class AutoReplyService(BaseBusinessService):
                 "message": "自动回复已禁用"
             }
         
-        # 生成AI回复
-        reply_generator = ReplyGenerator(db)
-        try:
-            conversation_id = context.get("conversation_id")
-            ai_reply = await reply_generator.generate_reply(
-                customer_id=customer_id,
-                message_content=message_data.get("content", ""),
-                customer_name=customer.name if customer else None,
-                conversation_id=conversation_id
-            )
-        except Exception as e:
-            logger.error(f"AI回复生成失败: {str(e)}", exc_info=True)
-            
-            # 发送错误通知
-            error_msg = str(e)
-            error_type = "AI_REPLY_FAILED"
-            if "token" in error_msg.lower() or "expired" in error_msg.lower() or "unauthorized" in error_msg.lower():
-                error_type = "TOKEN_EXPIRED"
-            
-            # 记录失败率
+        # 优先检查页面是否有系统自带的默认回复
+        page_default_reply = page_settings.get_page_default_reply(page_id)
+        if page_default_reply:
+            logger.info(f"使用页面 {page_id} 的系统默认回复")
+            ai_reply = page_default_reply
+        else:
+            # 如果没有默认回复，生成AI回复
+            reply_generator = ReplyGenerator(db)
             try:
-                from src.monitoring.reply_failure_tracker import reply_failure_tracker
-                reply_failure_tracker.record_failure(
-                    failure_type=error_type,
-                    error_message=error_msg,
+                conversation_id = context.get("conversation_id")
+                ai_reply = await reply_generator.generate_reply(
+                    customer_id=customer_id,
+                    message_content=message_data.get("content", ""),
+                    customer_name=customer.name if customer else None,
+                    conversation_id=conversation_id
+                )
+            except Exception as e:
+                logger.error(f"AI回复生成失败: {str(e)}", exc_info=True)
+                
+                # 发送错误通知
+                error_msg = str(e)
+                error_type = "AI_REPLY_FAILED"
+                if "token" in error_msg.lower() or "expired" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                    error_type = "TOKEN_EXPIRED"
+                
+                # 记录失败率
+                try:
+                    from src.monitoring.reply_failure_tracker import reply_failure_tracker
+                    reply_failure_tracker.record_failure(
+                        failure_type=error_type,
+                        error_message=error_msg,
+                        customer_id=customer_id,
+                        page_id=page_id,
+                        metadata={"message_content": message_data.get("content", "")[:100]}
+                    )
+                except Exception:
+                    pass  # 不影响主流程
+                
+                await self._send_error_notification(
+                    error_type=error_type,
+                    error_message=f"AI回复生成失败: {error_msg}",
                     customer_id=customer_id,
                     page_id=page_id,
-                    metadata={"message_content": message_data.get("content", "")[:100]}
+                    message_content=message_data.get("content", "")[:100]
                 )
-            except Exception:
-                pass  # 不影响主流程
-            
-            await self._send_error_notification(
-                error_type=error_type,
-                error_message=f"AI回复生成失败: {error_msg}",
-                customer_id=customer_id,
-                page_id=page_id,
-                message_content=message_data.get("content", "")[:100]
-            )
-            
-            return {
-                "success": False,
-                "status": "error",
-                "error": str(e),
-                "message": f"AI回复生成失败: {str(e)}"
-            }
+                
+                return {
+                    "success": False,
+                    "status": "error",
+                    "error": str(e),
+                    "message": f"AI回复生成失败: {str(e)}"
+                }
         
         if not ai_reply:
             logger.info(f"跳过回复：消息被识别为垃圾信息或无效沟通")

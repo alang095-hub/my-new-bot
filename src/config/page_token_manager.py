@@ -137,7 +137,7 @@ class PageTokenManager:
     
     async def sync_from_user_token(self, user_token: str) -> int:
         """
-        从用户Token同步所有页面的Token
+        从用户Token同步所有页面的Token（支持分页，获取所有页面）
         
         Args:
             user_token: 用户级别的Token（需要有pages_show_list权限）
@@ -148,31 +148,50 @@ class PageTokenManager:
         from src.core.config.constants import FACEBOOK_ME_ACCOUNTS_URL
         
         try:
+            all_pages = []
             url = FACEBOOK_ME_ACCOUNTS_URL
-            params = {"access_token": user_token}
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url, params=params)
-                if response.status_code == 200:
-                    data = response.json()
-                    pages = data.get("data", [])
+            params = {"access_token": user_token, "limit": 100}  # 每页最多100个
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                page_count = 0
+                
+                # 处理分页，获取所有页面
+                while url:
+                    response = await client.get(url, params=params)
                     
-                    count = 0
-                    for page in pages:
-                        page_id = page.get("id")
-                        page_token = page.get("access_token")
-                        page_name = page.get("name")
+                    if response.status_code == 200:
+                        data = response.json()
+                        pages = data.get("data", [])
+                        all_pages.extend(pages)
+                        page_count += 1
+                        logger.info(f"获取第 {page_count} 页，{len(pages)} 个页面（累计: {len(all_pages)} 个）")
                         
-                        if page_id and page_token:
-                            self.set_token(page_id, page_token, page_name)
-                            count += 1
+                        # 检查是否有下一页
+                        paging = data.get("paging", {})
+                        if "next" in paging:
+                            url = paging["next"]
+                            params = {}  # 下一页URL已经包含所有参数
+                        else:
+                            url = None
+                    else:
+                        logger.error(f"获取页面列表失败: HTTP {response.status_code}")
+                        return 0
+                
+                # 保存所有页面
+                count = 0
+                for page in all_pages:
+                    page_id = page.get("id")
+                    page_token = page.get("access_token")
+                    page_name = page.get("name")
                     
-                    logger.info(f"从用户Token同步了 {count} 个页面Token")
-                    return count
-                else:
-                    logger.error(f"获取页面列表失败: HTTP {response.status_code}")
-                    return 0
+                    if page_id and page_token:
+                        self.set_token(page_id, page_token, page_name)
+                        count += 1
+                
+                logger.info(f"从用户Token同步了 {count} 个页面Token（共 {page_count} 页）")
+                return count
         except Exception as e:
-            logger.error(f"同步页面Token失败: {str(e)}")
+            logger.error(f"同步页面Token失败: {str(e)}", exc_info=True)
             return 0
 
 
