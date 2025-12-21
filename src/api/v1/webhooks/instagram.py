@@ -1,12 +1,24 @@
 """Instagram Webhook 处理器（FastAPI路由）"""
-from fastapi import APIRouter, Request, Response, HTTPException, Query, BackgroundTasks
-from typing import Dict, Any
+
 import logging
-from src.instagram.api_client import InstagramAPIClient
-from src.instagram.message_parser import InstagramMessageParser
+from typing import Any, Dict
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response
+
 from src.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+# 可选导入Instagram模块（如果不存在则禁用功能）
+try:
+    from src.instagram.api_client import InstagramAPIClient
+    from src.instagram.message_parser import InstagramMessageParser
+    INSTAGRAM_AVAILABLE = True
+except (ImportError, ModuleNotFoundError) as e:
+    logger.warning(f"Instagram modules not available: {e}. Instagram webhook will be disabled.")
+    INSTAGRAM_AVAILABLE = False
+    InstagramAPIClient = None
+    InstagramMessageParser = None
 
 router = APIRouter(prefix="/instagram/webhook", tags=["instagram"])
 
@@ -15,11 +27,11 @@ router = APIRouter(prefix="/instagram/webhook", tags=["instagram"])
 async def verify_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
     hub_verify_token: str = Query(None, alias="hub.verify_token"),
-    hub_challenge: str = Query(None, alias="hub.challenge")
+    hub_challenge: str = Query(None, alias="hub.challenge"),
 ):
     """
     Instagram Webhook 验证端点
-    
+
     Instagram 在订阅 Webhook 时会调用此端点进行验证
     """
     # 检查是否缺少必需参数
@@ -27,24 +39,28 @@ async def verify_webhook(
         logger.info("Instagram webhook endpoint accessed without required parameters")
         return Response(
             content="Instagram Webhook 验证端点\n\n此端点需要以下查询参数：\n- hub.mode\n- hub.verify_token\n- hub.challenge\n\nInstagram 在验证 Webhook 时会自动发送这些参数。",
-            media_type="text/plain; charset=utf-8"
+            media_type="text/plain; charset=utf-8",
         )
-    
-    logger.info(f"Instagram webhook verification request: mode={hub_mode}, token={hub_verify_token[:10]}..., challenge={hub_challenge[:20] if hub_challenge else 'None'}...")
-    
+
+    logger.info(
+        f"Instagram webhook verification request: mode={hub_mode}, token={hub_verify_token[:10]}..., challenge={hub_challenge[:20] if hub_challenge else 'None'}..."
+    )
+
+    if not INSTAGRAM_AVAILABLE:
+        logger.error("Instagram modules not available, cannot verify webhook")
+        raise HTTPException(status_code=503, detail="Instagram service not available")
+
     client = InstagramAPIClient()
     try:
-        challenge = await client.verify_webhook(
-            hub_mode,
-            hub_verify_token,
-            hub_challenge
-        )
-        
+        challenge = await client.verify_webhook(hub_mode, hub_verify_token, hub_challenge)
+
         if challenge:
             logger.info("Instagram webhook verified successfully")
             return Response(content=challenge, media_type="text/plain")
         else:
-            logger.warning(f"Instagram webhook verification failed: mode={hub_mode}, token_match=False")
+            logger.warning(
+                f"Instagram webhook verification failed: mode={hub_mode}, token_match=False"
+            )
             raise HTTPException(status_code=403, detail="Verification failed")
     except HTTPException:
         raise
@@ -59,34 +75,35 @@ async def verify_webhook(
 async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
     """
     Instagram Webhook 接收端点
-    
+
     接收来自 Instagram 的所有事件（消息、评论等）
     """
     try:
+        if not INSTAGRAM_AVAILABLE:
+            logger.error("Instagram modules not available, cannot process webhook")
+            raise HTTPException(status_code=503, detail="Instagram service not available")
+
         body = await request.json()
         logger.info(f"Received Instagram webhook event: {body}")
-        
+
         # 解析事件
         parser = InstagramMessageParser()
         parsed_messages = parser.parse_webhook_event(body)
-        
+
         if not parsed_messages:
             logger.info("No Instagram messages to process")
             return {"status": "ok"}
-        
+
         # 在后台处理消息（使用统一处理器）
         from src.main_processor import process_platform_message
+
         for message_data in parsed_messages:
             # 添加平台标识
             message_data["platform"] = "instagram"
             background_tasks.add_task(process_platform_message, "instagram", message_data)
-        
-        return {
-            "status": "ok",
-            "processed_count": len(parsed_messages)
-        }
-    
+
+        return {"status": "ok", "processed_count": len(parsed_messages)}
+
     except Exception as e:
         logger.error(f"Error processing Instagram webhook: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-

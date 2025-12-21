@@ -1,0 +1,291 @@
+# 菲律宾苹果贷合规聊天机器人配置模板
+# 符合Meta Non-Deceptive Policy规范
+#
+# 使用说明：
+# 1. 将此配置合并到主配置文件 config/config.yaml 中
+# 2. 或在 config.yaml 中引用此文件
+# 3. 确保替换所有占位符（如 {telegram_link}）
+
+# 3步自动回复流程配置（合规版本）
+three_step_flow:
+  enabled: true  # 是否启用3步流程
+  
+  # Greeting Text（首次进入显示 - 简短版本）
+  # ⚠️ 安全原则：简短、中性、不诱导
+  # 符合合规要求：
+  # ✅ 不承诺下款
+  # ✅ 不收费、不留诱导性文案
+  # ✅ 只是说明页面用途
+  # ✅ 符合 Meta 的 Non-Deceptive Policy
+  # 
+  # 注意：Greeting Text通过API自动设置到Messenger Profile
+  greeting_text: |
+    Hello 👋
+    Thanks for contacting our Page.
+    We provide general loan information only.
+  
+  # Instant Reply（用户点击后自动发 - 三连问）
+  # ⚠️ 安全原则：只筛选，不引流（不包含TG链接或任何外部链接）
+  # 符合合规要求：
+  # ✅ 不承诺下款
+  # ✅ 不收费、不留诱导性文案
+  # ✅ 是"确认条件"，不是"推销"
+  # ✅ 明确"可忽略" → 降低投诉
+  # ✅ 不包含TG链接 → 降低封号风险
+  # ✅ 符合 Meta 的 Non-Deceptive Policy
+  # 
+  # 注意：Instant Reply需要在Meta Business Suite中手动配置
+  # 此配置提供模板内容，方便复制到Business Suite
+  instant_reply: |
+    Hi 👋 Thanks for your message.
+
+    To check if we can assist you, please confirm:
+    1️⃣ Are you currently in the Philippines?
+    2️⃣ Are you 18 years old or above?
+    3️⃣ Would you like to learn more about the loan application process?
+
+    You may ignore this message if not interested.
+  
+  # 兼容性：保留step1_reply作为instant_reply的别名（用于旧代码）
+  step1_reply:
+    - |
+      Hi 👋 Thanks for your message.
+
+      To check if we can assist you, please confirm:
+      1️⃣ Are you currently in the Philippines?
+      2️⃣ Are you 18 years old or above?
+      3️⃣ Would you like to learn more about the loan application process?
+
+      You may ignore this message if not interested.
+  
+  # 第二步回复（用户回复YES后的第一次回复 - 说明可选渠道）
+  # ⚠️ 安全原则：说明可选渠道，强调"This is optional"
+  # 这一步不包含TG链接，只是说明有可选的外部渠道
+  step2_reply_after_yes: |
+    Thanks for confirming 👍
+    
+    We can share general loan information here.
+    If you prefer faster self-service updates,
+    you may choose to use our Telegram assistant.
+    
+    This is optional.
+  
+  # 第三步回复（等待3-5秒后发送 - 安全引流话术）
+  # ⚠️ 安全原则：用户主动选择，强调optional和"if you wish"
+  # 必须包含：optional, if you wish, continue here as well
+  step3_safe_drainage_template: |
+    Telegram is used only for:
+    • Checking basic requirements
+    • Getting application guidance
+    • FAQ support
+    
+    👉 Click here only if you wish to proceed:
+    {telegram_link}
+    
+    If you prefer, we can continue here as well.
+  
+  # 当用户未回复YES时的提示（保留原逻辑）
+  step2_reply_if_not_yes: |
+    Thank you for your response.
+    
+    To proceed, please confirm all three questions:
+    1️⃣ Are you in the Philippines?
+    2️⃣ Are you 18 years old or above?
+    3️⃣ Would you like to learn about the loan process?
+    
+    Reply YES if you meet all conditions, or contact us for assistance.
+  
+  # 已废弃：使用 step2_reply_after_yes + step3_safe_drainage_template 替代
+  # 保留此字段以兼容旧代码，但建议使用新的安全引流流程
+  step3_reply_template: |
+    Great! Thank you for confirming.
+    
+    To keep information organized and updated, we share details via Telegram.
+    
+    👉 Join here: {telegram_link}
+    
+    Our team will assist you with the loan application process.
+  
+  # Telegram群组链接（请替换为实际链接）
+  telegram_link: "t.me/xxxx"  # ⚠️ 请替换为实际的Telegram群组链接
+  
+  # 路由判断规则
+  # 注意：当前系统的 three_step_flow 逻辑会：
+  # - 如果用户回复YES → 发送Telegram链接，标记为COMPLETED，继续AI自动回复
+  # - 如果用户未回复YES → 发送step2_reply提示，可扩展为标记为needs_review转人工
+  # 
+  # 如需实现"转人工"功能，需要在代码中扩展 three_step_flow 逻辑，
+  # 当检测到用户回复不符合"全部YES"条件时，设置 conversation.should_review = True
+  routing_rules:
+    # 全部YES → 继续自动流程（当前已实现）
+    all_yes_action: "continue_auto"
+    # 其他情况 → 转人工（需要代码扩展）
+    other_action: "transfer_to_human"
+    # YES识别关键词（用于判断用户是否回复YES）
+    yes_keywords:
+      - "yes"
+      - "y"
+      - "1"
+      - "ok"
+      - "sure"
+      - "yeah"
+      - "yep"
+      - "okay"
+      - "alright"
+      - "fine"
+      - "correct"
+    # 识别"1 2 3"格式的关键词
+    number_keywords:
+      - "1 2 3"
+      - "1,2,3"
+      - "123"
+      - "1, 2, 3"
+
+# 自动回复配置（确保启用）
+auto_reply:
+  enabled: true
+  default_language: "en"  # 系统回复语言：必须使用英语（符合合规要求）
+  response_delay_seconds: 2
+  default_reply: null
+
+# AI 回复模板配置（二级自动流程使用）
+ai_templates:
+  # 当用户通过三连问确认后，使用此AI模板进行后续对话
+  prompt_type: "iphone_loan_telegram"  # 使用iPhone贷款专用提示词
+  greeting: "Hello! I'm here to help you with the loan application process."
+  collecting_info: "To proceed, I need the following information: iPhone model, storage capacity, Apple ID status, ID card, and desired loan amount."
+  processing: "Processing your request, please wait..."
+  fallback: "I didn't fully understand your question. Could you please provide more details?"
+
+# 安全引流架构说明
+safety_architecture: |
+  ⚠️ 核心安全原则：Facebook不"直接拉你去TG"，而是"用户主动选择"
+  
+  推荐安全链路：
+  Facebook 广告 / Page
+    ↓
+  Messenger 自动回复（三连问 - Instant Reply）
+    ↓
+  用户明确表示"想了解"（回复YES/1 2 3）
+    ↓
+  发送「可选外部渠道」说明（step2_reply_after_yes）
+    ↓
+  用户主动点击 TG Bot（step3_safe_drainage_template）
+  
+  安全链路设计：
+  1. Greeting Text（首次进入显示）：简短、中性、不诱导
+     - ✅ 只说明页面用途
+     - ✅ 不包含TG链接
+     - ✅ 不包含任何外部链接
+  
+  2. Instant Reply（用户点击后自动发）：只筛选，不引流
+     - ❌ 不包含TG链接
+     - ❌ 不包含"去TG"的暗示
+     - ✅ 只是筛选用户是否符合条件
+     - ✅ 明确"可忽略"
+  
+  3. 第二步（step2_reply_after_yes）：说明可选渠道
+     - ✅ 感谢确认
+     - ✅ 说明可以在这里继续
+     - ✅ 提到"可选"的Telegram助手
+     - ✅ 强调"This is optional"
+     - ⏱️ 等3-5秒后再发下一条（由系统控制）
+  
+  4. 第三步（step3_safe_drainage_template）：用户主动选择
+     - ✅ "Telegram is used only for..."（明确用途）
+     - ✅ "Click here only if you wish to proceed"（用户主动选择）
+     - ✅ "If you prefer, we can continue here as well"（提供选择）
+     - ✅ 必须包含关键词：optional, if you wish, continue here as well
+  
+  ❌ 不安全做法（容易封号）：
+  - ❌ 自动回复里直接甩 TG 链接
+  - ❌ 强制"去 TG 才能继续"
+  - ❌ 未沟通就跳转外站
+  - ❌ 使用禁止词汇（见下方prohibited_keywords列表）
+
+# 禁止词汇列表（贷款类特别注意）
+# ⚠️ 绝对不要出现在自动回复里的词
+prohibited_keywords:
+  - "Guaranteed"
+  - "100% approved"
+  - "Instant cash"
+  - "秒到"
+  - "No documents"
+  - "Blacklist OK"
+  - "Limited quota"  # 制造恐慌
+  - "must join"
+  - "required to"
+  - "need to go to"
+  - "必须加入"
+  - "需要去"
+  - "必须"
+  - "才能继续"
+  
+# 合规性说明
+compliance_notes: |
+  此配置模板符合以下合规要求：
+  
+  1. ✅ 不承诺下款：文案中不包含任何承诺性语言
+  2. ✅ 不收费、不留诱导性文案：使用中性、客观的确认性问题
+  3. ✅ 是"确认条件"，不是"推销"：三个问题都是确认用户是否符合条件
+  4. ✅ 明确"可忽略" → 降低投诉：明确告知用户"可以忽略此消息"
+  5. ✅ 安全引流架构 → 低封号风险：
+     - Greeting Text简短、中性
+     - Instant Reply不包含TG链接
+     - 第二步强调"optional"
+     - 第三步强调"if you wish"和"continue here as well"
+     - 用户主动选择，而非强制引导
+  6. ✅ 符合 Meta 的 Non-Deceptive Policy：
+     - 不包含误导性信息
+     - 明确告知用户可以忽略
+     - 使用客观的确认性问题
+     - 不承诺任何结果
+     - 不强制跳转外部平台
+  7. ✅ 避免使用禁止词汇：见上方prohibited_keywords列表
+  
+  使用建议：
+  - Greeting Text：通过API自动设置到Messenger Profile（使用greeting_text字段）
+  - Instant Reply：需要在Meta Business Suite中手动配置（使用instant_reply字段的内容）
+  - 确保所有文案使用英语（符合Meta规范）
+  - 根据实际业务需求调整 telegram_link
+  - 使用安全引流流程：step2_reply_after_yes → step3_safe_drainage_template
+  - 监控用户回复，根据路由规则进行判断
+  - 建议同时配置Facebook Business Suite的常见问题（FAQs），详见 config/facebook_faqs.yaml
+  
+  安全关键词清单（必须使用）：
+  - ✅ "optional"
+  - ✅ "if you wish"
+  - ✅ "continue here as well"
+  - ✅ "you may choose"
+  - ✅ "This is optional"
+  - ✅ "whichever you prefer"
+  - ✅ "your choice"
+  
+  避免的用词（不安全）：
+  - ❌ 见上方prohibited_keywords列表
+  - ❌ 任何强制性语言
+  
+  脸书贷款类特别注意：
+  - ❌ 绝对不要在自动回复里使用禁止词汇
+  - ✅ 自动回复只做筛选
+  - ✅ 真正介绍产品 → 放到人工或二次流程
+  - ✅ 每个用户24小时内只自动一次
+
+# ============================================================================
+# Facebook Business Suite 常见问题（FAQs）配置（可选，强烈推荐）
+# ============================================================================
+# FAQ是脸书最安全的自动回复形式之一
+# - 用户点问题 = 用户主动行为（非骚扰）
+# - 系统自动回复 = 非推送（用户主动触发）
+# - 可以包含比Instant Reply更多的信息
+# - 是唯一可以"温和提TG"的地方（可选，不强制）
+#
+# 详细配置和设置指南请参考：
+# - config/facebook_faqs.yaml（FAQ配置模板）
+# - docs/guides/facebook_faqs_setup_guide.md（设置指南）
+#
+facebook_faqs:
+  enabled: true  # 建议启用FAQ功能
+  reference_config: "config/facebook_faqs.yaml"  # FAQ配置文件路径
+  setup_guide: "docs/guides/facebook_faqs_setup_guide.md"  # 设置指南路径
+

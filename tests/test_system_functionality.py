@@ -450,14 +450,14 @@ async def test_main_app():
         MockRouter = APIRouter
         
         # 处理Instagram模块
-        if 'src.instagram.webhook_handler' not in sys.modules:
+        if 'src.api.v1.webhooks.instagram' not in sys.modules:
             try:
-                from src.instagram.webhook_handler import router
+                from src.api.v1.webhooks.instagram import router
             except (ImportError, ModuleNotFoundError):
-                log_test("主应用 - Instagram模块", "SKIP", "Instagram webhook_handler模块不存在，创建模拟模块")
-                instagram_module = ModuleType('src.instagram.webhook_handler')
+                log_test("主应用 - Instagram模块", "SKIP", "Instagram webhook模块不存在，创建模拟模块")
+                instagram_module = ModuleType('src.api.v1.webhooks.instagram')
                 instagram_module.router = MockRouter()
-                sys.modules['src.instagram.webhook_handler'] = instagram_module
+                sys.modules['src.api.v1.webhooks.instagram'] = instagram_module
                 
                 if 'src.instagram' not in sys.modules:
                     instagram_pkg = ModuleType('src.instagram')

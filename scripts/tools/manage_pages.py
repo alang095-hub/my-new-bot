@@ -1,4 +1,4 @@
-"""统一的页面管理工具 - 整合Token管理和自动回复开关"""
+R"""统一的页面管理工具 - 整合Token管理和自动回复开关"""
 import os
 import sys
 import asyncio
@@ -19,7 +19,8 @@ load_dotenv()
 
 
 async def sync_all_pages(user_token: Optional[str] = None):
-    """从用户Token同步所有页面的Token，并自动启用自动回复（支持分页）"""
+    """从用户Token同步所有页面的Token，并自动启用自动回复（支持分页）
+    自动将用户级别Token升级为长期Token（如果配置了App ID和Secret）"""
     if not user_token:
         user_token = settings.facebook_access_token
     
@@ -30,6 +31,40 @@ async def sync_all_pages(user_token: Optional[str] = None):
     
     print(f"使用Token: {user_token[:20]}...")
     print()
+    
+    # 尝试将用户Token升级为长期Token
+    try:
+        app_id = getattr(settings, 'facebook_app_id', None)
+        app_secret = getattr(settings, 'facebook_app_secret', None)
+        
+        if app_id and app_secret:
+            print("🔄 检测到App ID和Secret，正在将用户Token升级为长期Token...")
+            try:
+                from scripts.tools.convert_to_long_lived_token import exchange_for_long_lived_token
+                long_token, expires_at_str = await exchange_for_long_lived_token(user_token, app_id, app_secret)
+                if long_token:
+                    user_token = long_token
+                    if expires_at_str:
+                        from datetime import datetime
+                        expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+                        days = (expires_at - datetime.now(expires_at.tzinfo)).days
+                        print(f"✅ 用户Token已升级为长期Token（有效期: {days} 天）")
+                    else:
+                        print(f"✅ 用户Token已升级为长期Token（永久有效）")
+                    print()
+                else:
+                    print("⚠️  无法升级为长期Token，将使用原始Token")
+                    print()
+            except Exception as e:
+                print(f"⚠️  Token升级失败: {str(e)}，将使用原始Token")
+                print()
+        else:
+            print("ℹ️  未配置App ID和Secret，跳过Token升级")
+            print()
+    except Exception as e:
+        print(f"⚠️  Token升级检查失败: {str(e)}，将使用原始Token")
+        print()
+    
     print("提示：如果页面很多，可能需要一些时间...")
     print()
     
@@ -39,15 +74,15 @@ async def sync_all_pages(user_token: Optional[str] = None):
         print(f"✅ 成功同步 {count} 个页面的Token")
         print()
         
-        # 自动为所有同步的页面启用自动回复
+        # 为所有同步的页面添加到配置中（自动回复关闭，但页面激活）
         pages = page_token_manager.list_pages()
-        enabled_count = 0
+        configured_count = 0
         for page_id, info in pages.items():
             page_name = info.get("name", "未知")
-            # 如果页面设置中还没有配置，则添加并启用
-            if not page_settings.get_page_config(page_id).get("auto_reply_enabled"):
-                page_settings.add_page(page_id, auto_reply_enabled=True, name=page_name)
-                enabled_count += 1
+            # 如果页面设置中还没有配置，则添加（auto_reply_enabled=False，但页面已激活）
+            if not page_settings.get_page_config(page_id):
+                page_settings.add_page(page_id, auto_reply_enabled=False, name=page_name)
+                configured_count += 1
         
         print("已配置的页面:")
         for page_id, info in pages.items():
@@ -55,9 +90,9 @@ async def sync_all_pages(user_token: Optional[str] = None):
             auto_reply_status = "✅ 启用" if page_settings.is_auto_reply_enabled(page_id) else "❌ 禁用"
             print(f"  - {page_name} (ID: {page_id}) - {auto_reply_status}")
         
-        if enabled_count > 0:
+        if configured_count > 0:
             print()
-            print(f"✅ 已自动启用 {enabled_count} 个页面的自动回复")
+            print(f"✅ 已为 {configured_count} 个页面添加配置（自动回复已禁用，页面已激活）")
     else:
         print("❌ 同步失败，请检查Token权限")
     
