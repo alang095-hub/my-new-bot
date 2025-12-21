@@ -1,0 +1,351 @@
+# TGTG（Telegram Group）完整引流方案配置
+# 适用于菲律宾苹果贷业务
+#
+# 使用说明：
+# 1. 将此配置合并到主配置文件 config/config.yaml 中
+# 2. 替换所有Telegram群组链接为实际链接
+# 3. 根据业务需求调整引流策略和文案
+
+# ============================================================================
+# Telegram群组配置
+# ============================================================================
+telegram_groups:
+  # 主群组（主要引流目标）
+  main_group: "t.me/your_main_group"  # ⚠️ 替换为实际的主群组链接
+  
+  # 备用群组（主群组满员或维护时使用）
+  backup_group: "t.me/your_backup_group"  # ⚠️ 可选，替换为备用群组链接
+  
+  # 频道（用于公告和重要信息）
+  channel: "t.me/your_channel"  # ⚠️ 可选，替换为频道链接
+  
+  # 群组链接格式说明：
+  # - 支持格式：t.me/groupname 或 https://t.me/groupname
+  # - 支持邀请链接：t.me/+invite_code 或 https://t.me/+invite_code
+  # - 系统会自动识别并在回复中使用
+
+# ============================================================================
+# 引流策略配置
+# ============================================================================
+tgtg_drainage_strategy:
+  enabled: true  # 是否启用TGTG引流策略
+  
+  # 引流时机策略
+  timing_strategy:
+    # 首次接触时立即引流（Greeting后）
+    first_contact:
+      enabled: true
+      priority: "high"  # high, medium, low
+      # 是否在Greeting Text中包含群链接
+      include_in_greeting: false  # 建议false，避免Greeting过长
+    
+    # 对话中期引流（3-4轮对话后）
+    mid_conversation:
+      enabled: true
+      trigger_round: 3  # 触发轮次（3表示第3轮对话后）
+      priority: "medium"
+    
+    # 对话结束时引流
+    end_conversation:
+      enabled: true
+      trigger_condition: "after_info_collection"  # after_info_collection, after_3_rounds, always
+      priority: "high"
+    
+    # 用户主动询问时引流
+    user_inquiry:
+      enabled: true
+      keywords:  # 当用户消息包含这些关键词时，主动引流
+        - "how"
+        - "where"
+        - "join"
+        - "group"
+        - "telegram"
+        - "application"
+        - "apply"
+        - "process"
+        - "流程"
+        - "如何"
+        - "怎么"
+      priority: "high"
+  
+  # 引流频率控制
+  frequency_control:
+    # 每个客户最多发送几次群链接
+    max_invitations_per_customer: 3
+    # 两次邀请之间的最小间隔（分钟）
+    min_interval_minutes: 5
+    # 是否检查客户是否已收到过邀请
+    check_before_send: true
+
+# ============================================================================
+# 引流文案模板（多种变体，系统会随机选择）
+# ⚠️ 安全引流原则：强调optional、用户主动选择、提供继续在Messenger的选择
+# ============================================================================
+tgtg_invitation_templates:
+  # 首次接触文案（用户回复YES后，安全引流版本）
+  # ⚠️ 必须包含安全关键词：optional, if you wish, continue here as well
+  first_contact:
+    # 安全引流标准模板（推荐）
+    - |
+      Telegram is used only for:
+      • Checking basic requirements
+      • Getting application guidance
+      • FAQ support
+      
+      👉 Click here only if you wish to proceed:
+      {telegram_link}
+      
+      If you prefer, we can continue here as well.
+    # 变体1
+    - |
+      Thanks for confirming 👍
+      
+      We can share general loan information here.
+      If you prefer faster self-service updates,
+      you may choose to use our Telegram assistant.
+      
+      This is optional.
+      
+      (Wait 3-5 seconds, then send next message)
+      
+      👉 Telegram: {telegram_link} (only if you wish to proceed)
+      
+      If you prefer, we can continue here as well.
+    # 变体2
+    - |
+      Great! We can help you here in Messenger.
+      
+      If you'd like to use our Telegram assistant for faster updates,
+      you may choose to join: {telegram_link}
+      
+      This is optional. We can continue here if you prefer.
+  
+  # 对话中期文案（3-4轮后，安全版本）
+  # ⚠️ 使用温和的提醒，强调optional
+  mid_conversation:
+    - "Just a reminder: If you'd like faster updates, you may choose our Telegram assistant: {telegram_link} (This is optional, we can continue here.)"
+    - "We can continue here, or if you prefer, you may use our Telegram assistant: {telegram_link} (Your choice!)"
+    - "For ongoing support, you may choose to join our Telegram: {telegram_link} Or we can continue here - whichever you prefer."
+    - "If you wish, you may join our Telegram for faster responses: {telegram_link} But we're happy to continue here as well."
+  
+  # 对话结束文案（信息收集完成后，安全版本）
+  # ⚠️ 强调用户可以选择，不强制
+  end_conversation:
+    - "Excellent! We'll review your application. If you'd like updates via Telegram, you may join: {telegram_link} (Optional - we can also update you here.)"
+    - "Thank you! For faster updates, you may choose our Telegram: {telegram_link} Or we'll update you here - your choice."
+    - "Perfect! We'll process your application. If you wish, join our Telegram for updates: {telegram_link} (This is optional, we can continue here.)"
+    - "Great! If you'd like to receive updates via Telegram, you may join: {telegram_link} But we're happy to continue here as well."
+  
+  # 用户主动询问时文案（安全版本）
+  # ⚠️ 用户主动询问时，可以更直接，但仍需强调可选
+  user_inquiry:
+    - "Sure! You may use our Telegram assistant: {telegram_link} for faster help. Or we can continue here - whichever you prefer."
+    - "Of course! If you'd like, join our Telegram: {telegram_link} for detailed assistance. We can also help you here."
+    - "You may join our Telegram for step-by-step guidance: {telegram_link} Or we can guide you here - your choice."
+    - "Great! If you wish, use our Telegram: {telegram_link} for faster support. We're also happy to help here."
+  
+  # 通用文案（备用，安全版本）
+  general:
+    - "If you'd like, you may join our Telegram: {telegram_link} for faster support. This is optional - we can continue here as well."
+    - "You may choose our Telegram assistant: {telegram_link} for quicker responses. Or we can continue here - whichever you prefer."
+
+# ============================================================================
+# 引流话术个性化配置
+# ============================================================================
+tgtg_message_personalization:
+  enabled: true
+  
+  # 根据用户意图个性化文案（安全版本）
+  intent_based_templates:
+    # 用户询问价格（安全版本）
+    price_inquiry:
+      - "Great deal! New customers get 50% OFF first week! If you'd like details, you may join our Telegram: {telegram_link} (Optional - we can also share info here.)"
+      - "We have special offers! If you wish, join our Telegram: {telegram_link} to learn about rates. Or we can tell you here."
+    
+    # 用户提供机型信息（安全版本）
+    model_provided:
+      - "Got it! For your {model} application, you may use our Telegram: {telegram_link} for faster processing. Or we can continue here - your choice."
+      - "Perfect! We'll process your {model} request. If you'd like, join our Telegram: {telegram_link} (Optional - we're happy to continue here.)"
+    
+    # 用户提供金额信息（安全版本）
+    amount_provided:
+      - "Excellent! For your {amount} peso loan, you may join our Telegram: {telegram_link} to proceed faster. Or we can continue here - whichever you prefer."
+      - "Great! We'll process your {amount} peso application. If you wish, use our Telegram: {telegram_link} (This is optional, we can also proceed here.)"
+    
+    # 用户犹豫或沉默（安全版本）
+    hesitation:
+      - "Ready when you are! If you'd like, join our Telegram: {telegram_link} for ongoing assistance. Or we can continue here - your choice."
+      - "Take your time! If you wish, use our Telegram: {telegram_link} We're here to help anytime, here or there."
+
+# ============================================================================
+# 引流效果追踪配置
+# ============================================================================
+tgtg_tracking:
+  enabled: true
+  
+  # 统计指标
+  metrics:
+    # 是否追踪邀请发送数
+    track_invitations_sent: true
+    # 是否追踪成功加入数（需手动标记或API集成）
+    track_successful_joins: true
+    # 是否追踪转化率
+    track_conversion_rate: true
+  
+  # 标记用户已加入的方法
+  join_detection:
+    # 自动检测（通过Telegram Bot API，需要配置）
+    auto_detect: false  # 需要Telegram Bot Token
+    # 手动标记（通过API或数据库）
+    manual_mark: true
+    # API端点（如果启用）
+    api_endpoint: "/statistics/mark-joined-group"
+
+# ============================================================================
+# 三步流程集成（与合规模板集成）
+# ============================================================================
+three_step_flow:
+  enabled: true
+  
+  # 第一步：Greeting（不包含群链接，保持合规）
+  step1_reply:
+    - |
+      Hi 👋 Thanks for your message.
+      
+      To check if we can assist you, please confirm:
+      1️⃣ Are you currently in the Philippines?
+      2️⃣ Are you 18 years old or above?
+      3️⃣ Would you like to learn more about the loan application process?
+      
+      You may ignore this message if not interested.
+  
+  # 第二步：引导确认（如果用户未回复YES）
+  step2_reply: |
+    Thank you for your response.
+    
+    To proceed, please confirm all three questions, or join our Telegram group for assistance.
+  
+  # 第三步：用户确认后，发送Telegram群组链接
+  step3_reply_template: |
+    Great! Thank you for confirming.
+    
+    To keep information organized and updated, we share details via Telegram.
+    
+    👉 Join here: {telegram_link}
+    
+    Our team will assist you with the loan application process.
+  
+  telegram_link: "t.me/your_main_group"  # ⚠️ 替换为实际群组链接
+
+# ============================================================================
+# AI回复集成（二级自动流程）
+# ============================================================================
+ai_templates:
+  # 使用iPhone贷款Telegram专用提示词
+  prompt_type: "iphone_loan_telegram"
+  
+  # Telegram群组链接会在AI回复中自动添加（根据引流策略）
+
+# ============================================================================
+# 自动回复配置
+# ============================================================================
+auto_reply:
+  enabled: true
+  default_language: "en"  # 必须使用英语（合规要求）
+  response_delay_seconds: 2
+
+# ============================================================================
+# 安全引流架构说明
+# ============================================================================
+safety_architecture: |
+  ⚠️ 核心安全原则：Facebook不"直接拉你去TG"，而是"用户主动选择"
+  
+  安全链路设计：
+  Facebook 广告 / Page
+      ↓
+  Messenger 自动回复（三连问，只筛选，不引流）
+      ↓
+  用户回复 YES / 1 2 3（明确表示"想了解"）
+      ↓
+  发送「可选外部渠道」说明（强调optional）
+      ↓
+  用户主动点击 TG Bot（用户主动选择）
+  
+  安全关键词清单（必须使用）：
+  - ✅ "optional"
+  - ✅ "if you wish"
+  - ✅ "continue here as well"
+  - ✅ "you may choose"
+  - ✅ "This is optional"
+  - ✅ "whichever you prefer"
+  - ✅ "your choice"
+  
+  避免的用词（不安全，容易封号）：
+  - ❌ "must join" / "必须加入"
+  - ❌ "required to" / "需要"
+  - ❌ "need to go to" / "需要去"
+  - ❌ "join our Telegram to continue" / "加入TG才能继续"
+  - ❌ 任何强制性语言
+
+# ============================================================================
+# 合规性说明
+# ============================================================================
+compliance_notes: |
+  TGTG安全引流方案合规要点：
+  
+  1. ✅ 不承诺下款：文案中不包含任何承诺性语言
+  2. ✅ 不诱导性文案：使用客观、中性的邀请语言
+  3. ✅ 明确说明是Telegram：避免混淆
+  4. ✅ 合理频率：不会频繁发送邀请，避免骚扰
+  5. ✅ 用户主动选择：强调optional、if you wish，用户可以选择
+  6. ✅ 提供选择：明确说明"可以继续在这里"，不强制跳转
+  7. ✅ 低封号风险：遵循安全架构，用户主动选择而非强制引导
+  
+  安全引流策略说明：
+  - 第一步（三连问）：只筛选，不引流，不包含TG链接
+  - 第二步（用户确认后）：说明可选渠道，强调"This is optional"
+  - 第三步（安全引流）：提供TG链接，强调"if you wish"和"continue here as well"
+  - 对话中期：适度提醒，使用温和语言
+  - 对话结束：提供选择，不强制
+  - 用户询问：及时响应，但仍强调可选
+  
+  最佳实践：
+  - 每个客户最多发送3次邀请
+  - 两次邀请之间至少间隔5分钟
+  - 检查客户是否已收到过邀请，避免重复
+  - 使用多种文案变体，避免过于机械
+  - 根据用户意图个性化文案内容
+  - 所有文案必须包含安全关键词
+  - 避免任何强制性语言
+
+# ============================================================================
+# 使用说明
+# ============================================================================
+usage_instructions: |
+  1. 配置Telegram群组链接：
+     - 替换 main_group 为实际的主群组链接
+     - 可选：配置 backup_group 和 channel
+  
+  2. 调整引流策略：
+     - 根据业务需求启用/禁用不同的引流时机
+     - 调整触发条件和优先级
+  
+  3. 自定义文案模板：
+     - 编辑 tgtg_invitation_templates 中的文案
+     - 保持合规性（不承诺、不诱导）
+     - 使用 {telegram_link} 占位符
+  
+  4. 监控引流效果：
+     - 启用 tgtg_tracking 追踪统计
+     - 查看每日统计数据
+     - 手动标记用户已加入群组（如需）
+  
+  5. 与三步流程集成：
+     - 确保 three_step_flow.enabled = true
+     - 第三步会自动发送Telegram群组链接
+  
+  6. 测试流程：
+     - 使用测试账号测试完整流程
+     - 验证文案显示正确
+     - 确认群组链接可访问
+
