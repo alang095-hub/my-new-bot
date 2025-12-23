@@ -57,7 +57,8 @@ async def sync_pages(
         user_token = settings.facebook_access_token
 
         if not user_token:
-            raise HTTPException(status_code=400, detail="FACEBOOK_ACCESS_TOKEN 未配置")
+            raise HTTPException(
+                status_code=400, detail="FACEBOOK_ACCESS_TOKEN 未配置")
 
         # 检查是否正在运行
         if _sync_status["running"]:
@@ -81,7 +82,8 @@ async def sync_pages(
                     for page_id, info in pages.items():
                         page_name = info.get("name", "未知")
                         if not page_settings.get_page_config(page_id).get("auto_reply_enabled"):
-                            page_settings.add_page(page_id, auto_reply_enabled=True, name=page_name)
+                            page_settings.add_page(
+                                page_id, auto_reply_enabled=True, name=page_name)
                             enabled_count += 1
 
                     _sync_status["last_result"] = {
@@ -97,7 +99,8 @@ async def sync_pages(
                     }
                     logger.warning("同步失败，未找到任何页面")
             except Exception as e:
-                _sync_status["last_result"] = {"success": False, "error": str(e)}
+                _sync_status["last_result"] = {
+                    "success": False, "error": str(e)}
                 logger.error(f"后台同步失败: {str(e)}", exc_info=True)
             finally:
                 _sync_status["running"] = False
@@ -143,9 +146,11 @@ async def get_deployment_status(db: Session = Depends(get_db)):
 
         # 检查数据库连接
         try:
-            db.execute("SELECT 1")
+            from sqlalchemy import text
+            db.execute(text("SELECT 1"))
             db_connected = True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Database connection check failed: {str(e)}")
             db_connected = False
 
         return {
@@ -188,6 +193,102 @@ async def get_deployment_status(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"获取部署状态失败: {str(e)}")
 
 
+@router.get("/pages/{page_id}")
+async def get_page_config(page_id: str, db: Session = Depends(get_db)):
+    """
+    获取单个页面的详细配置信息
+
+    返回：
+    - 页面基本信息
+    - Token配置状态
+    - 自动回复配置
+    - Messenger设置状态
+    """
+    try:
+        # 检查页面是否存在
+        pages = page_token_manager.list_pages()
+        if page_id not in pages:
+            raise HTTPException(
+                status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
+
+        page_info = pages[page_id]
+        page_name = page_info.get("name", "未知")
+
+        # 获取Token配置
+        page_token = page_token_manager.get_token(page_id)
+        token_configured = page_token is not None
+
+        # 获取页面设置
+        page_config = page_settings.get_page_config(page_id)
+        auto_reply_enabled = page_settings.is_auto_reply_enabled(page_id)
+        default_reply = page_settings.get_page_default_reply(page_id)
+
+        # 尝试获取Messenger配置（如果Token可用）
+        messenger_config = {}
+        if page_token:
+            try:
+                import httpx
+                from src.core.config.constants import FACEBOOK_GRAPH_API_BASE_URL
+
+                # 使用 me 端点查询Messenger配置
+                url = f"{FACEBOOK_GRAPH_API_BASE_URL}/me/messenger_profile"
+                params = {
+                    "access_token": page_token,
+                    "fields": "get_started,persistent_menu,greeting,whitelisted_domains"
+                }
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(url, params=params)
+                    if response.status_code == 200:
+                        messenger_config = response.json()
+                    else:
+                        # 如果失败，尝试使用页面ID
+                        url2 = f"{FACEBOOK_GRAPH_API_BASE_URL}/{page_id}/messenger_profile"
+                        response2 = await client.get(url2, params=params)
+                        if response2.status_code == 200:
+                            messenger_config = response2.json()
+            except Exception as e:
+                logger.warning(f"获取页面 {page_id} 的Messenger配置失败: {str(e)}")
+                messenger_config = {"error": str(e)}
+
+        # 获取配置管理器中的配置信息（如果存在）
+        config_info = {}
+        try:
+            from src.project.wuji.config_manager import config_manager
+
+            config_info = config_manager.get_config_info(page_id) or {}
+        except Exception:
+            pass
+
+        return {
+            "success": True,
+            "page": {
+                "id": page_id,
+                "name": page_name,
+                "token_configured": token_configured,
+                "token_exists": bool(page_token),
+                "auto_reply": {
+                    "enabled": auto_reply_enabled,
+                    "default_reply": default_reply,
+                },
+                "page_settings": page_config,
+                "messenger_config": {
+                    "greeting": messenger_config.get("greeting", []),
+                    "get_started": messenger_config.get("get_started", {}),
+                    "persistent_menu": messenger_config.get("persistent_menu", []),
+                    "whitelisted_domains": messenger_config.get("whitelisted_domains", []),
+                },
+                "config_status": config_info.get("status", "unknown"),
+                "last_updated": page_info.get("updated_at"),
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取页面配置失败: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"获取页面配置失败: {str(e)}")
+
+
 @router.put("/pages/{page_id}/enable")
 async def enable_page(
     page_id: str,
@@ -202,10 +303,12 @@ async def enable_page(
     try:
         pages = page_token_manager.list_pages()
         if page_id not in pages:
-            raise HTTPException(status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
+            raise HTTPException(
+                status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
 
         page_name = pages[page_id].get("name", "未知")
-        page_settings.add_page(page_id, auto_reply_enabled=True, name=page_name)
+        page_settings.add_page(
+            page_id, auto_reply_enabled=True, name=page_name)
 
         logger.info(f"通过API启用页面自动回复: {page_id} ({page_name})")
 
@@ -237,10 +340,12 @@ async def disable_page(
     try:
         pages = page_token_manager.list_pages()
         if page_id not in pages:
-            raise HTTPException(status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
+            raise HTTPException(
+                status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
 
         page_name = pages[page_id].get("name", "未知")
-        page_settings.add_page(page_id, auto_reply_enabled=False, name=page_name)
+        page_settings.add_page(
+            page_id, auto_reply_enabled=False, name=page_name)
 
         logger.info(f"通过API禁用页面自动回复: {page_id} ({page_name})")
 
@@ -272,16 +377,19 @@ async def toggle_page(
     try:
         pages = page_token_manager.list_pages()
         if page_id not in pages:
-            raise HTTPException(status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
+            raise HTTPException(
+                status_code=404, detail=f"页面 {page_id} 未找到，请先同步页面")
 
         page_name = pages[page_id].get("name", "未知")
         current_status = page_settings.is_auto_reply_enabled(page_id)
         new_status = not current_status
 
-        page_settings.add_page(page_id, auto_reply_enabled=new_status, name=page_name)
+        page_settings.add_page(
+            page_id, auto_reply_enabled=new_status, name=page_name)
 
         status_text = "启用" if new_status else "禁用"
-        logger.info(f"通过API切换页面自动回复状态: {page_id} ({page_name}) -> {status_text}")
+        logger.info(
+            f"通过API切换页面自动回复状态: {page_id} ({page_name}) -> {status_text}")
 
         return {
             "success": True,
@@ -317,7 +425,8 @@ async def batch_update_pages(
 
         for page_id in update.page_ids:
             if page_id not in pages:
-                results.append({"page_id": page_id, "success": False, "error": "页面未找到"})
+                results.append(
+                    {"page_id": page_id, "success": False, "error": "页面未找到"})
                 failed_count += 1
                 continue
 
@@ -336,7 +445,8 @@ async def batch_update_pages(
                 )
                 success_count += 1
             except Exception as e:
-                results.append({"page_id": page_id, "success": False, "error": str(e)})
+                results.append(
+                    {"page_id": page_id, "success": False, "error": str(e)})
                 failed_count += 1
 
         status_text = "启用" if update.auto_reply_enabled else "禁用"
@@ -373,7 +483,8 @@ async def enable_all_pages(
         for page_id, info in pages.items():
             page_name = info.get("name", "未知")
             if not page_settings.is_auto_reply_enabled(page_id):
-                page_settings.add_page(page_id, auto_reply_enabled=True, name=page_name)
+                page_settings.add_page(
+                    page_id, auto_reply_enabled=True, name=page_name)
                 enabled_count += 1
 
         logger.info(
@@ -408,7 +519,8 @@ async def disable_all_pages(
         for page_id, info in pages.items():
             page_name = info.get("name", "未知")
             if page_settings.is_auto_reply_enabled(page_id):
-                page_settings.add_page(page_id, auto_reply_enabled=False, name=page_name)
+                page_settings.add_page(
+                    page_id, auto_reply_enabled=False, name=page_name)
                 disabled_count += 1
 
         logger.info(
@@ -442,7 +554,8 @@ async def verify_token(
         token = settings.facebook_access_token
 
         if not token:
-            raise HTTPException(status_code=400, detail="FACEBOOK_ACCESS_TOKEN 未配置")
+            raise HTTPException(
+                status_code=400, detail="FACEBOOK_ACCESS_TOKEN 未配置")
 
         # 检查Token类型
         app_id = settings.facebook_app_id
@@ -458,7 +571,8 @@ async def verify_token(
         async with httpx.AsyncClient(timeout=10.0) as client:
             # 检查Token信息
             debug_url = FACEBOOK_DEBUG_TOKEN_URL
-            debug_params = {"input_token": token, "access_token": f"{app_id}|{app_secret}"}
+            debug_params = {"input_token": token,
+                            "access_token": f"{app_id}|{app_secret}"}
             debug_response = await client.get(debug_url, params=debug_params)
 
             if debug_response.status_code != 200:
@@ -515,13 +629,13 @@ async def sync_and_setup_pages(
 ):
     """
     同步所有页面Token并配置Messenger设置（后台执行）
-    
+
     这会：
     - 同步所有Facebook页面Token
     - 激活所有页面（auto_reply_enabled=false，但页面已激活）
     - 配置所有页面的Messenger设置（Greeting Message、Get Started Button）
     - 为Meta Business Suite自动回复做准备
-    
+
     请求参数（可选）:
     - telegram_link: Telegram群组链接（用于Persistent Menu）
     """
@@ -529,7 +643,8 @@ async def sync_and_setup_pages(
         user_token = settings.facebook_access_token
 
         if not user_token:
-            raise HTTPException(status_code=400, detail="FACEBOOK_ACCESS_TOKEN 未配置")
+            raise HTTPException(
+                status_code=400, detail="FACEBOOK_ACCESS_TOKEN 未配置")
 
         # 检查是否正在运行
         if _sync_and_setup_status["running"]:
@@ -574,7 +689,8 @@ async def sync_and_setup_pages(
                 for page_id, info in pages.items():
                     page_name = info.get("name", "未知")
                     if not page_settings.get_page_config(page_id):
-                        page_settings.add_page(page_id, auto_reply_enabled=False, name=page_name)
+                        page_settings.add_page(
+                            page_id, auto_reply_enabled=False, name=page_name)
                         configured_count += 1
 
                 logger.info(f"已为 {configured_count} 个页面添加配置（自动回复已禁用，页面已激活）")
@@ -582,7 +698,8 @@ async def sync_and_setup_pages(
                 # 步骤3: 配置所有页面的Messenger设置
                 # 读取合规配置
                 try:
-                    config = load_yaml_config("config/config_philippines_iphone_loan_compliant.yaml")
+                    config = load_yaml_config(
+                        "config/config_philippines_iphone_loan_compliant.yaml")
                     three_step_config = config.get("three_step_flow", {})
                 except Exception as e:
                     logger.warning(f"无法读取合规配置: {str(e)}，使用默认配置")
@@ -611,12 +728,14 @@ async def sync_and_setup_pages(
 
                     if not page_token:
                         setup_failed += 1
-                        setup_details.append({"page_id": page_id, "page_name": page_name, "status": "failed", "reason": "未找到Token"})
+                        setup_details.append(
+                            {"page_id": page_id, "page_name": page_name, "status": "failed", "reason": "未找到Token"})
                         continue
 
                     try:
-                        logger.info(f"开始配置页面 {page_name} (ID: {page_id}) 的Messenger设置...")
-                        
+                        logger.info(
+                            f"开始配置页面 {page_name} (ID: {page_id}) 的Messenger设置...")
+
                         # 同时设置Greeting Message和Get Started Button（Facebook API要求：设置greeting时必须同时设置至少一个其他参数）
                         greeting_and_get_started_result = await set_greeting_and_get_started(
                             page_id, page_token, greeting_message, "GET_STARTED"
@@ -627,13 +746,15 @@ async def sync_and_setup_pages(
                             # 向后兼容：如果返回bool，则没有错误详情
                             greeting_success = greeting_and_get_started_result
                             greeting_error = None
-                        
+
                         # 两者同时设置，结果相同
                         get_started_success = greeting_success
-                        
-                        logger.info(f"页面 {page_name} - Greeting Message和Get Started Button设置结果: {greeting_success}")
+
+                        logger.info(
+                            f"页面 {page_name} - Greeting Message和Get Started Button设置结果: {greeting_success}")
                         if greeting_error:
-                            logger.warning(f"页面 {page_name} - Greeting Message和Get Started Button错误详情: {greeting_error}")
+                            logger.warning(
+                                f"页面 {page_name} - Greeting Message和Get Started Button错误详情: {greeting_error}")
 
                         # 详细记录结果
                         if greeting_success and get_started_success:
@@ -654,16 +775,18 @@ async def sync_and_setup_pages(
                             if not greeting_success:
                                 failed_items.append("Greeting Message")
                                 if greeting_error:
-                                    error_msg = greeting_error.get('message', '未知错误')
+                                    error_msg = greeting_error.get(
+                                        'message', '未知错误')
                                     error_code = greeting_error.get('code', 0)
-                                    error_details_list.append(f"Greeting Message: {error_msg} (错误码: {error_code})")
+                                    error_details_list.append(
+                                        f"Greeting Message: {error_msg} (错误码: {error_code})")
                             if not get_started_success:
                                 failed_items.append("Get Started Button")
-                            
+
                             error_message = f"部分成功，失败的项: {', '.join(failed_items)}"
                             if error_details_list:
                                 error_message += f" | 错误详情: {'; '.join(error_details_list)}"
-                            
+
                             setup_details.append({
                                 "page_id": page_id,
                                 "page_name": page_name,
@@ -673,7 +796,8 @@ async def sync_and_setup_pages(
                                 "message": error_message,
                                 "greeting_error": greeting_error if not greeting_success else None
                             })
-                            logger.warning(f"⚠️ 页面 {page_name} - Messenger设置部分成功: {failed_items} 失败, 错误: {error_details_list}")
+                            logger.warning(
+                                f"⚠️ 页面 {page_name} - Messenger设置部分成功: {failed_items} 失败, 错误: {error_details_list}")
                         else:
                             setup_failed += 1
                             setup_details.append({
@@ -695,7 +819,8 @@ async def sync_and_setup_pages(
                             "reason": f"异常错误: {error_msg}",
                             "error_type": type(e).__name__
                         })
-                        logger.error(f"❌ 配置页面 {page_id} ({page_name}) 失败: {str(e)}", exc_info=True)
+                        logger.error(
+                            f"❌ 配置页面 {page_id} ({page_name}) 失败: {str(e)}", exc_info=True)
 
                 _sync_and_setup_status["last_result"] = {
                     "success": True,
@@ -713,7 +838,8 @@ async def sync_and_setup_pages(
                     f"{setup_success} 个页面Messenger设置成功"
                 )
             except Exception as e:
-                _sync_and_setup_status["last_result"] = {"success": False, "error": str(e)}
+                _sync_and_setup_status["last_result"] = {
+                    "success": False, "error": str(e)}
                 logger.error(f"后台同步和配置失败: {str(e)}", exc_info=True)
             finally:
                 _sync_and_setup_status["running"] = False
@@ -743,16 +869,17 @@ async def get_faq_content(
 ):
     """
     获取FAQ配置内容（用于复制粘贴到Meta Business Suite）
-    
+
     注意：FAQ必须手动在Meta Business Suite中设置，无法通过API自动配置
     """
     try:
         from src.core.config.loader import load_yaml_config
-        
+
         # 读取FAQ配置
         try:
             faq_config = load_yaml_config("config/facebook_faqs.yaml")
-            questions = faq_config.get("facebook_faqs", {}).get("questions", [])
+            questions = faq_config.get(
+                "facebook_faqs", {}).get("questions", [])
         except Exception as e:
             logger.warning(f"无法读取FAQ配置: {str(e)}，使用默认配置")
             # 使用默认FAQ内容
@@ -778,7 +905,7 @@ async def get_faq_content(
                     "answer": "If you wish to proceed, you may continue the conversation here\nor choose to use our Telegram assistant for optional self-service guidance."
                 }
             ]
-        
+
         # 格式化FAQ内容
         formatted_faqs = []
         for idx, qa in enumerate(questions, 1):
@@ -788,7 +915,7 @@ async def get_faq_content(
                 "answer": qa.get("answer", ""),
                 "copy_text": f"Q{idx}: {qa.get('question', '')}\n\n{qa.get('answer', '')}"
             })
-        
+
         return {
             "success": True,
             "note": "FAQ必须手动在Meta Business Suite中设置，无法通过API自动配置",
